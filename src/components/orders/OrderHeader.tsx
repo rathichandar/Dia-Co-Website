@@ -102,7 +102,9 @@ function computeActionLabel(order: Order): string | null {
     case "awaiting_first_cad":
       return null
     case "awaiting_customer_review":
-      return `review CAD ${order.stageDetail.currentCadVersion} and approve`
+      return order.stageDetail.currentCadVersion
+        ? `review CAD ${order.stageDetail.currentCadVersion} and approve`
+        : "review the CAD and approve"
     case "awaiting_modifications":
       return null
     case "approved":

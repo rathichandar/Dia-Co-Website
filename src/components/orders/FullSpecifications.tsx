@@ -45,7 +45,8 @@ export function FullSpecifications({ order }: FullSpecificationsProps) {
   order.metals.forEach((m, idx) => {
     rows.push({
       k: order.metals.length > 1 ? `Metal ${idx + 1}` : "Metal",
-      v: `${m.karatLabel}${m.colorLabel ? ` ${m.colorLabel}` : ""} · ${m.finish.replace(/_/g, " ")}`,
+      // "other" means the finish is not recorded (e.g. an order read from the ERP, which keeps no finish).
+      v: `${m.karatLabel}${m.colorLabel ? ` ${m.colorLabel}` : ""}${m.finish !== "other" ? ` · ${m.finish.replace(/_/g, " ")}` : ""}`,
       sub: m.estimatedWeightGrams
         ? `${m.estimatedWeightGrams}g estimated${m.actualWeightGrams ? ` · ${m.actualWeightGrams}g actual` : ""}`
         : null,

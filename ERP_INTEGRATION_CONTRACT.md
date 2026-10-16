@@ -22,6 +22,21 @@ changing anything on either side.
 
 ## 0. Build status (updated 2026-10-16)
 
+**Step 2 (read path) is BUILT and not yet applied.**
+
+- **ERP:** `db/2026-10-16-portal-orders-read.sql`. Proven in PGlite: 14 probes, 10 mutants caught.
+- **Gateway:** new operations `orders.list` and `order.get`.
+- **`portal.test.js`:** 31 checks, the new ones trip-proven against 12 breaks. The ERP gate is green at 863.
+- **Portal:**
+  - `src/lib/erp/erpOrders.ts` feeds `/orders` and `/orders/[orderId]` for linked customers.
+  - Any ERP failure falls back to the Portal's own tables, so nothing breaks if the Portal code goes out before the ERP side.
+
+**`portal-gateway` was redeployed 2026-10-16 with `orders.list` and `order.get`.** Verified live: an unlinked login is refused at `portal_whoami` before any order is read; an unknown operation → 400.
+
+**To switch it on:**
+1. Apply the SQL plus V1–V4 to ERP staging. V4 lists how every status combination in use translates.
+2. Sign in as a linked customer.
+
 **Step 1a (identity links) WORKS END TO END on ERP staging (2026-10-16).** Nothing is committed.
 
 The first real run:
@@ -341,33 +356,41 @@ apply.
 
 ## 7. Status the customer sees
 
-`_portal_status(orders row)` is SQL inside the ERP. It reads **only** the mirror columns (`status`,
-`workflow`, `cad_status`, `mfg_status`, `party`), plus `data->>'startPoint' / 'finishedProduct'` for the
-stage list. It returns `{phase, stage, label}`.
+**Built in Step 2 (2026-10-16), per the owner's D2, D4 and D11.**
 
-| ERP state | `phase` | Customer sees |
+`_portal_status(status, workflow, cad_status, mfg_status, party)` is SQL in the ERP
+(`db/2026-10-16-portal-orders-read.sql`). It reads **only** the mirror columns. It translates into
+**the Portal's own** `order_status` + `sub_status`, so the existing `StageRibbon` (Designing → Production →
+QC → Shipping) and status pills render ERP orders unchanged.
+
+| ERP state | Portal `status` · `sub_status` | The Portal shows |
 |---|---|---|
-| Portal submission, still a draft | `received` | Received — Dia-Co is reviewing your order |
-| Submission declined | `declined` | Not accepted — *reason* |
-| `status='cancelled'` | `cancelled` | Cancelled. Can return to its prior state if Dia-Co restores it (A4) |
-| CAD: New Order Request, CAD Assigning, CAD Designing, Admin Review, CAD Error | `design` | Designing |
-| CAD: Mod Requested, Redesigning | `design` | Updating your design |
-| CAD: Client Review | `review` | Your design is ready for review |
-| Manufacturing, `mfg_status` in Freeze / Follow-Up | `on_hold` | On hold |
-| Manufacturing, `Approval` | `production` | Approved — scheduling production |
-| Manufacturing, any other status | `production` | In production — *stage*. The stage comes from the same table as `roadmapStageOfStatus` (`60:935-968`). If there is none, the label is plain "In production" |
-| `workflow='Invoicing'` | `ready` | Final checks done — preparing to ship |
-| `workflow='Done'` | `shipped` | Shipped (**D4**: the ERP has no separate ship event) |
+| `status='cancelled'` | `cancelled` | the Cancelled tab |
+| CAD: New Order Request, CAD Assigning, CAD Designing, Admin Review, CAD Error | `designing` · `awaiting_design` | A Designing — "Design in progress" |
+| CAD: Client Review | `designing` · `awaiting_review` | A Designing — "Needs review" pill |
+| CAD: Mod Requested, Redesigning | `designing` · `redesigning` | A Designing — "Redesigning" pill |
+| CAD: Approved; Manufacturing: Approval | `approved` | B Production — "Queued for production" |
+| Manufacturing: every other step, and the QC checks before the last | `in_production` | B Production |
+| Final QC (as `isFinalQC()` decides it) | `qc` | C QC |
+| Freeze, Follow-Up | `on_hold` | "On hold" pill |
+| `workflow='Invoicing'` | `shipping` | D Shipping — "preparing to ship" |
+| `workflow='Done'` (invoiced) | `shipping` + `shipped: true` + `shipped_on` = invoice day | D Shipping — "Shipped" (**D4**) |
 
-**Rules that keep this from drifting:**
-- **The stage list is `roadmapStagesFor(startPoint, finishedProduct)`** + `Final QC` + `Shipped` (`34-domain-roadmap.jsx:25`). That function includes `Finishing`, and the plan's six-stage list omits it. **D2.**
-- **The mapping lives in a VALUES table in the SQL file.** A new `portal.test.js` checks it two ways:
-  - every `CAD_STATUS`, `MFG_STATUSES`, `SIDE_STATUSES` and `READY_INVOICING` value is covered;
-  - the stage column equals what the real `roadmapStageOfStatus` returns for every status and party pair (via `engine-load.js`).
-- **Add `_portal_status` to the status-rename sweep list** next to `isFinalQC` (`APP_OVERVIEW.md` §5.1).
-- **`customer_ship_date` is `ship_date` + 2 business days, skipping weekends only,** to match `addBusinessDays` (`32:95`). A test pins the two to each other. It is null until the order has a ship date (CAD orders get one at approval).
+**The ship date** is `ship_date` + 2 business days (A3). Saturday and Sunday are skipped exactly as
+`addBusinessDays` skips them. Every date is read as the Pacific day.
 
-**Which orders a customer sees:** every `orders` row with the customer's `customer_code` and `status <> 'draft'`, plus their own submissions. Whether to include the ~2,420 imported Orderwise (`DG-`) orders, or only those after a cut-off date, is **D11**.
+**Which orders a customer sees (D11):** every non-draft order with the customer's code that is still open,
+or was ordered, shipped or cancelled in the last 12 months. Imported Orderwise orders count from their
+`orderDate`, not the import day.
+
+**What keeps it from drifting** (`portal.test.js` E-section, trip-proven):
+- The VALUES lists must name exactly the app's `CAD_STATUS`, `MFG_STATUSES`, `SIDE_STATUSES`,
+  `REJECTED` and `READY_INVOICING`, plus three legacy values. A status added or renamed in the app fails
+  the gate until it is mapped. **Add this file to the status-rename sweep** next to `isFinalQC`.
+- The Final QC rule matches `isFinalQC()`.
+- The ship date matches `addBusinessDays`.
+- The allowlist is pinned key by key.
+- Mirror fields are read from columns.
 
 ---
 
@@ -491,16 +514,16 @@ The ERP's AR views return nothing unless the caller has `read.ar`, so the gatewa
 | # | Question | Recommendation |
 |---|---|---|
 | D1 | Build intake before the schema rebuild? | Yes (§12) |
-| D2 | Customer stage list: include Finishing? Short or full path per order? | `roadmapStagesFor` + Final QC + Shipped, Finishing included |
+| D2 | Customer stage list: include Finishing? Short or full path per order? | **DECIDED 2026-10-16 (owner): the stages the Portal already shows.** That is the `StageRibbon`: Designing → Production → QC → Shipping, or Designing → Wax production → Shipping for file and wax orders, plus the Designing sub-states and the existing status pills. The ERP maps its statuses into the Portal's `order_status` + `sub_status` (§7) |
 | D3 | Who handles portal drafts? | A shared Portal Review panel (AM and Admin), not one AM's private drafts |
-| D4 | Is "Shipped" the same as invoiced (`Done`)? | Yes for v1; add a ship event later if they differ in practice |
+| D4 | Is "Shipped" the same as invoiced (`Done`)? | **DECIDED 2026-10-16 (owner): yes.** `workflow = 'Done'` is shown as shipped. Revisit if a real ship event is added |
 | D5 | Drop-ship address and shipping method on ERP orders? | Add an optional `data.shipTo` key and show it on the job card and invoice |
 | D6 | `refPo` vs `personalPo`: what does each mean? | `client_po → refPo`; confirm before mapping the end customer |
 | D7 | Vocabulary gaps (D/E colour, mixed supply, Locks/Charm/Cufflinks, Trapezoid/Cadillac, five setting styles, colour stones) | Trim the Portal form to the ERP lists for anything that feeds price |
 | D8 | Auto-link Sales Reps invited by a linked Customer Admin? | Yes, logged |
 | D9 | Portal shows Restore after a cancel (A4)? | Yes: the status follows the ERP |
 | D10 | Which Portal test logins survive the customer reset? | (plan §4, open) |
-| D11 | Show imported Orderwise (`DG-`) orders to customers? From what date? | Show orders active on or after go-live, plus the last 12 months |
+| D11 | Show imported Orderwise (`DG-`) orders to customers? From what date? | **DECIDED 2026-10-16 (owner): yes.** Every order still open, plus every order created or finished in the last 12 months |
 | D12 | The old ASP.NET customer portal: what does it connect to now, and when is it retired or redirected? | Needs an answer before Portal go-live |
 
 ---

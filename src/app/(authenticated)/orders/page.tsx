@@ -98,7 +98,7 @@ function OrderCard({ item }: { item: OrderListItem }) {
       <div className="order-card__body">
         <h3 className="order-card__title">
           <span className="num">{item.orderNumber}</span>
-          {item.endCustomerName ?? 'Untitled'}
+          {item.endCustomerName ?? item.productLabel ?? 'Untitled'}
         </h3>
         <div className="order-card__spec">{item.subStatusText}</div>
         <div className="order-card__meta">
@@ -116,7 +116,7 @@ function OrderCard({ item }: { item: OrderListItem }) {
         </div>
         <div className="order-card__foot">
           <span className="l">
-            {item.price != null ? PRICE.format(item.price) : 'Quote pending'}
+            {item.priceHidden ? '' : item.price != null ? PRICE.format(item.price) : 'Quote pending'}
           </span>
           <span className="r">
             {item.expectedShipDate

@@ -93,7 +93,8 @@ export function statusPillForOrder(
     completed: 'shipping', // no pill case; closest semantic
     cancelled: 'cancelled',
   }
-  const status = stageToStatus[order.currentStage] ?? order.currentStage
+  // An ERP order carries its status in the Portal's words already (Step 2) — use it as is.
+  const status = order.portalStatus ?? stageToStatus[order.currentStage] ?? order.currentStage
 
   // Map designing sub-state back to schema sub_status. Only matters when
   // status === 'designing'; otherwise computeStatusPill ignores it.

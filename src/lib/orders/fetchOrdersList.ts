@@ -8,6 +8,7 @@
 // ============================================================
 
 import { createClient } from '@/lib/supabase/server'
+import { fetchErpOrdersList } from '@/lib/erp/erpOrders'
 import { computeStatusPill, type StatusPill, type StatusPillKind } from './statusPill'
 
 export type { StatusPill, StatusPillKind }
@@ -19,6 +20,8 @@ export interface OrderListItem {
   orderId: string
   orderNumber: string
   endCustomerName: string | null
+  productLabel?: string | null // ERP orders: "Ring · 14K Yellow", shown when there is no end-customer name
+  priceHidden?: boolean // ERP orders: the quote is not shown yet (Step 4), so no "Quote pending" either
   clientPo: string | null
   status: string
   subStatus: string | null
@@ -116,6 +119,11 @@ export async function fetchOrdersList(filters: {
   tab: OrdersTab
   stageFilter: StageFilter
 }): Promise<OrderListResult> {
+  // ERP integration Step 2: a login the ERP has linked to a customer sees that customer's orders from
+  // the ERP, the system of record. null = not configured or not linked -> the Portal's own tables below.
+  const fromErp = await fetchErpOrdersList(filters)
+  if (fromErp) return fromErp
+
   const supabase = await createClient()
 
   const today = new Date()

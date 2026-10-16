@@ -5,6 +5,11 @@
 //
 // Server component for data loading + page metadata. The
 // interactive two-column area is its own client component.
+//
+// ERP integration Step 2: for a login the ERP has linked to a
+// customer, the order is read from the ERP first (the system of
+// record); otherwise — or when the ERP has no such order — from the
+// Portal's own tables, as before.
 // ============================================================
 
 import type { Metadata } from "next"
@@ -15,6 +20,8 @@ import { FullSpecifications } from "@/components/orders/FullSpecifications"
 import { CustomerAndDropShip } from "@/components/orders/CustomerAndDropShip"
 import { AllAttachments } from "@/components/orders/AllAttachments"
 import { fetchOrder, fetchCustomerForOrder } from "@/lib/orders/fetchOrder"
+import { fetchErpOrderPage } from "@/lib/erp/erpOrders"
+import type { AccountManager, Customer, Order } from "@/types/order"
 import { notFound } from "next/navigation"
 // diaco-design.css is loaded by src/app/(authenticated)/layout.tsx
 
@@ -22,13 +29,27 @@ interface OrderDetailPageProps {
   params: Promise<{ orderId: string }>
 }
 
+async function loadOrderPage(
+  orderId: string,
+): Promise<{ order: Order; customer: Customer; am: AccountManager } | null> {
+  const erp = await fetchErpOrderPage(orderId)
+  if (erp?.kind === "found") return erp
+
+  const order = await fetchOrder(orderId)
+  if (!order) return null
+  const ca = await fetchCustomerForOrder(orderId)
+  if (!ca) return null
+  return { order, customer: ca.customer, am: ca.am }
+}
+
 // Dynamic browser tab title per order
 export async function generateMetadata({
   params,
 }: OrderDetailPageProps): Promise<Metadata> {
   const { orderId } = await params
-  const order = await fetchOrder(orderId)
-  if (!order) return { title: "Order not found · Dia-Co" }
+  const page = await loadOrderPage(orderId)
+  if (!page) return { title: "Order not found · Dia-Co" }
+  const { order } = page
 
   const title = order.poEndCustomerName
     ? `${order.poNumber} — ${order.poEndCustomerName} · Dia-Co`
@@ -41,17 +62,14 @@ export default async function OrderDetailPage({
   params,
 }: OrderDetailPageProps) {
   const { orderId } = await params
-  const order = await fetchOrder(orderId)
+  const page = await loadOrderPage(orderId)
 
-  if (!order) {
+  if (!page) {
     notFound()
   }
-
-  const ca = await fetchCustomerForOrder(orderId)
-  if (!ca) {
-    notFound()
-  }
-  const { customer, am } = ca
+  const { order, customer, am } = page
+  // An ERP order carries no ship-to, insurance or attachments the Portal can show yet.
+  const fromErp = order.source === "erp"
 
   return (
     <div className="diaco-design">
@@ -67,8 +85,8 @@ export default async function OrderDetailPage({
 
         <div className="flex flex-col gap-3 mt-5">
           <FullSpecifications order={order} />
-          <CustomerAndDropShip order={order} customer={customer} />
-          <AllAttachments order={order} />
+          {!fromErp && <CustomerAndDropShip order={order} customer={customer} />}
+          {!fromErp && <AllAttachments order={order} />}
         </div>
       </main>
     </div>

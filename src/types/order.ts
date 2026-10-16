@@ -429,6 +429,12 @@ export interface Order {
   shipping: ShippingSpec
 
   history: HistoryEvent[]
+
+  // ERP integration Step 2: an order read from the ERP (src/lib/erp/erpOrders.ts) rather than the
+  // Portal's own tables, and its status in the Portal's words as the ERP translated it (so the header
+  // pill can show e.g. "On hold", which `currentStage` alone cannot carry).
+  source?: "portal" | "erp"
+  portalStatus?: string
 }
 
 // ─── Helper: get a specific CAD version's quote ───────────

@@ -1,0 +1,350 @@
+// ============================================================
+// A linked customer's orders, read from the ERP (ERP_INTEGRATION_CONTRACT.md §5, §7 — Step 2).
+//
+// The ERP is the system of record. For a Portal login the ERP has linked to a customer, the order list
+// and the order page read through the gateway (orders.list / order.get) and are mapped here into the
+// Portal's existing shapes, so the pages and components render them unchanged.
+//
+// The ERP already did the translating (owner rulings 2026-10-16): status is in the Portal's own words
+// (designing | approved | in_production | qc | shipping | on_hold | cancelled + sub_status) — D2; an
+// invoiced order arrives as shipping with shipped=true and its invoice day — D4; the list holds open
+// orders plus the last 12 months — D11; the ship date is already the customer's date (+2 business days).
+// Nothing here recomputes any of that.
+//
+// `null` from these functions means "no ERP answer for this login" (not configured, or not linked):
+// callers fall back to the Portal's own tables, exactly as before Step 2.
+// ============================================================
+
+import { cache } from 'react'
+import { callGateway } from './gateway'
+import { computeStatusPill } from '@/lib/orders/statusPill'
+import type { OrderListItem, OrderListResult, OrdersTab, StageFilter } from '@/lib/orders/fetchOrdersList'
+import type {
+  AccountManager,
+  AccountManagerId,
+  Customer,
+  CustomerId,
+  DesigningSubState,
+  FinishPoint,
+  MetalColorId,
+  MetalKaratId,
+  MetalSpec,
+  Order,
+  OrderId,
+  ProductType,
+  Stage,
+  StageDetail,
+} from '@/types/order'
+
+export type ErpPortalStatus = 'designing' | 'approved' | 'in_production' | 'qc' | 'shipping' | 'on_hold' | 'cancelled'
+
+// One order exactly as the ERP's _portal_order_json sends it (its allowlist).
+export interface ErpOrder {
+  order_no: string
+  style_no: string | null
+  style: string | null
+  finish_point: FinishPoint | null
+  status: ErpPortalStatus
+  sub_status: 'awaiting_design' | 'awaiting_review' | 'redesigning' | null
+  shipped: boolean
+  shipped_on: string | null
+  customer_ship_date: string | null
+  ordered_on: string | null
+  cancelled_on: string | null
+  ref_po: string | null
+  quantity: number
+  size: string | null
+  metals: string[]
+  customer_name: string | null
+  updated_at: string | null
+}
+
+// Codes that mean "this login has no ERP orders to show" -> the Portal's own tables answer, quietly.
+// Any OTHER failure (the ERP unreachable, or a gateway older than this code) also falls back -- an
+// empty orders page would be worse than the Portal's own view -- but is logged.
+const EXPECTED_NO_ERP = new Set(['PORTAL_NOT_CONFIGURED', 'PORTAL_FORBIDDEN'])
+
+// Shipped orders stay on the Active tab this many days, as the Portal already does for its own.
+const SHIPPED_GRACE_DAYS = 7
+
+// A calendar day from the ERP ('YYYY-MM-DD') as local noon, so it prints as the same day in any timezone.
+function day(s: string | null | undefined): Date | null {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d, 12)
+}
+
+function startOfToday(): Date {
+  const t = new Date()
+  t.setHours(0, 0, 0, 0)
+  return t
+}
+
+function stageBadge(o: ErpOrder): string | null {
+  switch (o.status) {
+    case 'designing':
+      return 'Designing'
+    case 'approved':
+    case 'in_production':
+    case 'on_hold':
+      return 'Production'
+    case 'qc':
+      return 'QC'
+    case 'shipping':
+      return o.shipped ? 'Shipped' : 'Shipping'
+    default:
+      return null
+  }
+}
+
+const SHORT_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+
+function statusText(o: ErpOrder): string {
+  switch (o.status) {
+    case 'designing':
+      return o.sub_status === 'awaiting_review'
+        ? 'CAD ready — review needed'
+        : o.sub_status === 'redesigning'
+          ? 'Working on your changes'
+          : 'Design in progress'
+    case 'approved':
+      return 'Queued for production'
+    case 'in_production':
+      return 'In production'
+    case 'qc':
+      return 'Final inspection — shipping soon'
+    case 'shipping': {
+      const shippedOn = day(o.shipped_on)
+      return o.shipped ? (shippedOn ? `Shipped ${SHORT_DATE.format(shippedOn)}` : 'Shipped') : 'Final checks done — preparing to ship'
+    }
+    case 'on_hold':
+      return 'On hold'
+    case 'cancelled':
+      return 'Cancelled'
+  }
+}
+
+function productLabel(o: ErpOrder): string | null {
+  const parts = [o.style, o.metals[0]].filter(Boolean)
+  return parts.length ? parts.join(' · ') : null
+}
+
+function toListItem(o: ErpOrder, today: Date): OrderListItem {
+  // A shipped order is never late: it has no ship date still to meet.
+  const expectedShipDate = o.shipped ? null : day(o.customer_ship_date)
+  return {
+    orderId: o.order_no,
+    orderNumber: o.order_no,
+    endCustomerName: null,
+    productLabel: productLabel(o),
+    clientPo: o.ref_po,
+    status: o.status,
+    subStatus: o.sub_status,
+    stageBadgeName: stageBadge(o),
+    statusPill: computeStatusPill(o.status, o.sub_status, expectedShipDate, today),
+    subStatusText: statusText(o),
+    heroImageUrl: null, // CAD renders arrive in Step 4
+    price: null,
+    priceHidden: true, // the quote arrives in Step 4; "Quote pending" would be wrong for an order in production
+    expectedShipDate,
+    submittedByName: null,
+    amName: null,
+    updatedAt: o.updated_at ? new Date(o.updated_at) : new Date(0),
+  }
+}
+
+// ─── The list ───────────────────────────────────────────────
+
+export async function fetchErpOrdersList(filters: {
+  tab: OrdersTab
+  stageFilter: StageFilter
+}): Promise<OrderListResult | null> {
+  const res = await callGateway<{ ok: true; orders: ErpOrder[]; total: number }>('orders.list', { filter: 'all', limit: 500 })
+  if (!res.ok) {
+    if (!EXPECTED_NO_ERP.has(res.code)) {
+      console.error('[erpOrders] orders.list failed; showing the Portal\'s own orders:', { code: res.code, message: res.message })
+    }
+    return null
+  }
+
+  const today = startOfToday()
+  const graceStart = new Date(today)
+  graceStart.setDate(graceStart.getDate() - SHIPPED_GRACE_DAYS)
+
+  const all = res.data.orders.map((o) => ({ o, item: toListItem(o, today) }))
+  const isActive = ({ o }: { o: ErpOrder }) =>
+    o.status !== 'cancelled' && (!o.shipped || (day(o.shipped_on) ?? new Date(0)) >= graceStart)
+  const active = all.filter(isActive).map((x) => x.item)
+  const cancelled = all.filter(({ o }) => o.status === 'cancelled').map((x) => x.item)
+
+  const inProduction = (i: OrderListItem) => ['approved', 'in_production', 'qc', 'shipping', 'on_hold'].includes(i.status)
+  const isLate = (i: OrderListItem) => !!i.expectedShipDate && i.expectedShipDate < today
+
+  let items = filters.tab === 'cancelled' ? cancelled : active
+  if (filters.tab === 'active') {
+    if (filters.stageFilter === 'designing') items = active.filter((i) => i.status === 'designing')
+    else if (filters.stageFilter === 'production') items = active.filter(inProduction)
+    else if (filters.stageFilter === 'late') items = active.filter(isLate)
+  }
+
+  return {
+    items,
+    counts: {
+      active: active.length,
+      cancelled: cancelled.length,
+      all: active.length,
+      designing: active.filter((i) => i.status === 'designing').length,
+      production: active.filter(inProduction).length,
+      late: active.filter(isLate).length,
+    },
+  }
+}
+
+// ─── One order ──────────────────────────────────────────────
+
+const brand = <T,>(s: string) => s as T
+
+function productType(style: string | null): ProductType {
+  switch ((style ?? '').toLowerCase()) {
+    case 'ring':
+      return 'ring'
+    case 'earring':
+      return 'earrings'
+    case 'pendant':
+      return 'pendant'
+    case 'necklace':
+      return 'necklace'
+    case 'bracelet':
+      return 'bracelet'
+    default:
+      return 'other'
+  }
+}
+
+// "14K Yellow" -> karat 14K, colour Yellow; "Platinum" -> no colour. Finish is not something the ERP keeps.
+function metalSpec(label: string): MetalSpec {
+  const [karat, ...rest] = label.split(' ')
+  const color = rest.join(' ') || null
+  return {
+    karatId: brand<MetalKaratId>(karat),
+    karatLabel: karat,
+    colorId: color ? brand<MetalColorId>(color) : null,
+    colorLabel: color,
+    finish: 'other',
+    estimatedWeightGrams: null,
+    actualWeightGrams: null,
+  }
+}
+
+function stageOf(o: ErpOrder): Stage {
+  switch (o.status) {
+    case 'designing':
+      return 'designing'
+    case 'approved':
+    case 'in_production':
+    case 'on_hold':
+      return 'production'
+    case 'qc':
+      return 'qc'
+    case 'shipping':
+      return 'shipping'
+    case 'cancelled':
+      return 'cancelled'
+  }
+}
+
+function designingSubState(sub: ErpOrder['sub_status']): DesigningSubState {
+  if (sub === 'awaiting_review') return 'awaiting_customer_review'
+  if (sub === 'redesigning') return 'awaiting_modifications'
+  return 'awaiting_first_cad'
+}
+
+function stageDetailOf(o: ErpOrder): StageDetail {
+  switch (o.status) {
+    case 'designing':
+      return {
+        kind: 'designing',
+        subState: designingSubState(o.sub_status),
+        currentCadVersion: '',
+        actionNeeded: null, // approving in the Portal arrives in Step 4
+        actionDeadline: null,
+      }
+    case 'qc':
+      return { kind: 'qc', inspectionPassed: null, videoUrl: null }
+    case 'shipping':
+      return { kind: 'shipping', shippedAt: o.shipped ? day(o.shipped_on) : null, trackingNumber: null, estimatedDelivery: null }
+    case 'cancelled':
+      return {
+        kind: 'cancelled',
+        cancelledAt: day(o.cancelled_on) ?? new Date(0),
+        cancelledBy: { name: 'Dia-Co', role: '', avatarInitials: 'DC', side: 'diaco' },
+        reason: null,
+      }
+    default:
+      return { kind: 'production', subStages: [] }
+  }
+}
+
+function toOrder(o: ErpOrder): Order {
+  const shipDate = o.shipped ? null : day(o.customer_ship_date)
+  const sizeNum = o.size !== null ? Number(o.size) : NaN
+  return {
+    id: brand<OrderId>(o.order_no),
+    poNumber: o.order_no,
+    styleNumber: o.style_no,
+    poEndCustomerName: null,
+    softwareOrderId: o.order_no,
+    personalPo: o.ref_po,
+    customerId: brand<CustomerId>(''),
+    productType: productType(o.style),
+    customStyle: productType(o.style) === 'other' ? o.style : null,
+    size: Number.isFinite(sizeNum) ? { value: sizeNum, unit: 'US' } : null,
+    quantity: o.quantity,
+    finishPoint: o.finish_point ?? 'finished_piece',
+    metals: o.metals.map(metalSpec),
+    stones: { hasCenterStone: false, centerStone: null, accentStones: [] },
+    engraving: null,
+    description: '',
+    customerAttachments: [],
+    currentStage: stageOf(o),
+    stageDetail: stageDetailOf(o),
+    cadVersions: [], // Step 4
+    priorityRush: { eligibility: 'not_requested', fee: 0, requestedAt: null, reviewedAt: null, reviewedBy: null, denialReason: null },
+    submittedAt: day(o.ordered_on) ?? new Date(0),
+    lastUpdatedAt: o.updated_at ? new Date(o.updated_at) : new Date(0),
+    expectedShipDate: shipDate ? { start: shipDate, end: shipDate } : null,
+    shipping: { type: 'back_to_jeweler', recipientName: null, phone: null, address: null, insuredAmount: 0, carrier: null, trackingNumber: null },
+    history: [],
+    source: 'erp',
+    portalStatus: o.status,
+  }
+}
+
+export type ErpOrderPage =
+  | { kind: 'found'; order: Order; customer: Customer; am: AccountManager }
+  | { kind: 'not_found' }
+  | null // no ERP answer for this login: use the Portal's own tables
+
+// cache(): generateMetadata and the page ask for the same order in one request — one gateway call.
+export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpOrderPage> => {
+  const res = await callGateway<{ ok: true; order: ErpOrder }>('order.get', { order_no: orderNumber })
+  if (!res.ok) {
+    if (res.code === 'PORTAL_NOT_FOUND') return { kind: 'not_found' }
+    if (!EXPECTED_NO_ERP.has(res.code)) {
+      console.error('[erpOrders] order.get failed; trying the Portal\'s own order:', { code: res.code, message: res.message })
+    }
+    return null
+  }
+  const o = res.data.order
+  const customer: Customer = {
+    id: brand<CustomerId>(''),
+    companyName: o.customer_name ?? '',
+    contactName: '',
+    email: '',
+    phone: '',
+    address: { line1: '', city: '', state: '', zip: '', country: '' },
+    assignedAmId: brand<AccountManagerId>(''),
+  }
+  const am: AccountManager = { id: brand<AccountManagerId>(''), name: 'Dia-Co', email: '', role: 'Account Manager' }
+  return { kind: 'found', order: toOrder(o), customer, am }
+})

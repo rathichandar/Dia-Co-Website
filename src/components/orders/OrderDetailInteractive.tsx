@@ -53,7 +53,19 @@ export function OrderDetailInteractive({
 
   const isOnLatest = activeVersion?.versionNumber === latestVersion?.versionNumber
 
-  if (!activeVersion) return null
+  // No CAD version yet (a new order, or an order read from the ERP before Step 4 brings its
+  // renders): no gallery, quote or action rail to show — but the order's own facts still are.
+  if (!activeVersion) {
+    return (
+      <div className="order-page">
+        <div className="order-page__main">
+          <KeySpecs order={order} amName={am.name} />
+          <YourDescription order={order} customer={customer} />
+          <OrderHistory order={order} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="order-page">
