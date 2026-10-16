@@ -1,0 +1,2766 @@
+/* ============================================================
+   Dia-Co design system — scoped under .diaco-design
+   Sourced from DESIGN_REFERENCE.md (Claude Design mockup).
+   Avoid leaking tokens to the global scope so the existing
+   /orders/[orderId] page (Geist + Tailwind) stays unchanged.
+   ============================================================ */
+
+.diaco-design {
+  /* ---------- Brand Palette ---------- */
+  --dc-brown:        #8B7355;
+  --dc-red:          #C1403D;
+  --dc-gold:         #D4A94A;
+
+  /* ---------- Neutrals ---------- */
+  --dc-black:        #1A1A1A;
+  --dc-gray-700:     #666666;
+  --dc-gray-400:     #999999;
+  --dc-gray-300:     #E0E0E0;
+  --dc-gray-200:     #F0F0F0;
+  --dc-gray-100:     #F8F8F8;
+  --dc-gray-050:     #F5F5F5;
+  --dc-white:        #FFFFFF;
+
+  /* ---------- Semantic tokens ---------- */
+  --fg-1:            var(--dc-black);
+  --fg-2:            var(--dc-gray-700);
+  --fg-3:            var(--dc-gray-400);
+  --fg-accent:       var(--dc-brown);
+  --fg-highlight:    var(--dc-red);
+  --fg-on-dark:      var(--dc-white);
+
+  --bg-page:         var(--dc-gray-050);
+  --bg-surface:      var(--dc-white);
+  --bg-subtle:       var(--dc-gray-100);
+  --bg-dark:         var(--dc-black);
+
+  --border-standard: 1px solid var(--dc-gray-300);
+  --border-accent:   2px solid var(--dc-brown);
+  --border-thick:    6px solid var(--dc-brown);
+
+  /* ---------- Typography families ---------- */
+  /* These reference the CSS vars set by next/font in layout.tsx */
+  --font-display:    var(--font-playfair), 'Libre Baskerville', Georgia, 'Times New Roman', serif;
+  --font-sans:       var(--font-plex), -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono:       var(--font-plex-mono), 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ---------- Type scale ---------- */
+  --fs-headline:     48px;
+  --fs-section-ttl:  24px;
+  --fs-body:         15px;
+  --fs-label:        12px;
+
+  /* ---------- Spacing & radii ---------- */
+  --sp-section:      60px;
+  --sp-grid-gap:     20px;
+  --sp-label-track:  2px;
+  --radius-sm:       2px;
+  --radius-md:       4px;
+
+  /* ---------- Page application ---------- */
+  background: var(--bg-page);
+  color: var(--fg-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+.diaco-design * { box-sizing: border-box; }
+
+/* ============================================================
+   TOP NAV — appears on every page above the order-head
+   ============================================================ */
+.diaco-design.top-nav-wrap {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--dc-gray-300);
+  min-height: 0;
+}
+.diaco-design .top-nav {
+  max-width: 1440px; margin: 0 auto;
+  padding: 14px 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 28px;
+  font-family: var(--font-sans);
+}
+.diaco-design .top-nav__primary {
+  display: flex; align-items: center; gap: 28px;
+}
+.diaco-design .top-nav__link {
+  font-family: var(--font-sans);
+  font-size: 13px; font-weight: 500;
+  color: var(--fg-2);
+  text-decoration: none;
+  padding: 6px 2px;
+  border-bottom: 2px solid transparent;
+  transition: color 160ms ease, border-color 160ms ease;
+  letter-spacing: 0.2px;
+}
+.diaco-design .top-nav__link:hover { color: var(--fg-1); }
+.diaco-design .top-nav__link.is-active {
+  color: var(--fg-1);
+  font-weight: 600;
+  border-bottom-color: var(--dc-brown);
+}
+/* CTA button on the right — subdued primary look */
+.diaco-design .top-nav__cta {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 600;
+  color: #fff;
+  background: var(--dc-black);
+  border: 1px solid var(--dc-black);
+  border-radius: 2px;
+  padding: 7px 14px;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.diaco-design .top-nav__cta:hover { background: var(--dc-brown); border-color: var(--dc-brown); }
+.diaco-design .top-nav__cta.is-active { background: var(--dc-brown); border-color: var(--dc-brown); }
+
+.diaco-design .page-wrap {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 40px 48px 100px;
+}
+
+/* ============================================================
+   PAGE HEAD — editorial
+   ============================================================ */
+.diaco-design .order-head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 32px;
+  padding-bottom: 24px;
+  border-bottom: 6px solid var(--dc-brown);
+  margin-bottom: 28px;
+}
+.diaco-design .order-head__eyebrow {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+.diaco-design .order-head__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-headline);
+  font-weight: 600; line-height: 1.05; color: var(--fg-1);
+  letter-spacing: -0.01em; margin: 0;
+}
+.diaco-design .order-head__sub {
+  font-family: var(--font-sans); font-style: italic; font-size: 15px;
+  color: var(--fg-2); margin-top: 10px; max-width: 560px; line-height: 1.6;
+}
+.diaco-design .order-head__actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.diaco-design .btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  padding: 9px 16px;
+  border: 1px solid var(--dc-black); background: var(--dc-black); color: #fff;
+  border-radius: 2px; cursor: pointer; white-space: nowrap;
+  text-decoration: none;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease;
+}
+.diaco-design .btn:hover { background: var(--dc-brown); border-color: var(--dc-brown); }
+.diaco-design .btn--sec {
+  background: #fff; color: var(--fg-1); border-color: var(--dc-gray-300);
+}
+.diaco-design .btn--sec:hover { color: var(--dc-brown); border-color: var(--dc-brown); background: #fff; }
+
+/* ============================================================
+   BADGES
+   ============================================================ */
+.diaco-design .badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  padding: 4px 8px; border-radius: 2px; line-height: 1.2;
+  white-space: nowrap;
+}
+/* Stage badge (top-right of card hero). Dark, filled. */
+.diaco-design .badge--dark { background: var(--dc-black); color: #fff; }
+
+/* Status pills (top-left). Bg + text from spec; the .dot uses its own color. */
+.diaco-design .badge--late          { background: #FEE2E2; color: #991B1B; }
+.diaco-design .badge--late .dot     { background: #DC2626; }
+
+.diaco-design .badge--needs_review      { background: #FEF3C7; color: #92400E; }
+.diaco-design .badge--needs_review .dot { background: #D97706; }
+
+.diaco-design .badge--redesigning      { background: #E0E7FF; color: #3730A3; }
+.diaco-design .badge--redesigning .dot { background: #4F46E5; }
+
+.diaco-design .badge--on_hold      { background: #FED7AA; color: #9A3412; }
+.diaco-design .badge--on_hold .dot { background: #EA580C; }
+
+.diaco-design .badge--on_track      { background: #DCFCE7; color: #166534; }
+.diaco-design .badge--on_track .dot { background: #16A34A; }
+
+.diaco-design .badge .dot { width: 5px; height: 5px; border-radius: 50%; }
+
+/* ============================================================
+   ORDERS LIST — tabs / toolbar / grid
+   ============================================================ */
+.diaco-design .orders-tabs {
+  display: flex; gap: 0; border-bottom: 1px solid var(--dc-gray-300);
+  margin-bottom: 0;
+}
+.diaco-design .orders-tabs__tab {
+  padding: 14px 22px; background: none; border: none; cursor: pointer;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  color: var(--fg-3); border-bottom: 2px solid transparent;
+  display: inline-flex; align-items: center; gap: 8px;
+  text-decoration: none;
+  transition: color 160ms ease, border-color 160ms ease;
+}
+.diaco-design .orders-tabs__tab:hover { color: var(--fg-1); }
+.diaco-design .orders-tabs__tab.is-active { color: var(--fg-1); border-bottom-color: var(--dc-brown); }
+.diaco-design .orders-tabs__tab .count {
+  font-family: var(--font-mono); font-size: 10px;
+  background: var(--dc-gray-100); color: var(--fg-2);
+  padding: 2px 7px; border-radius: 2px; letter-spacing: 0.5px;
+}
+.diaco-design .orders-tabs__tab.is-active .count { background: var(--dc-brown); color: #fff; }
+
+.diaco-design .orders-toolbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 0 22px;
+  border-bottom: 1px solid var(--dc-gray-200);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.diaco-design .orders-toolbar .search {
+  flex: 1; max-width: 360px; min-width: 220px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; background: #fff;
+  border: 1px solid var(--dc-gray-300); border-radius: 2px;
+}
+.diaco-design .orders-toolbar .search input {
+  all: unset; flex: 1; font-family: var(--font-sans); font-size: 13px; color: var(--fg-1);
+}
+.diaco-design .orders-toolbar .search input::placeholder { color: var(--fg-3); }
+.diaco-design .orders-toolbar .filter {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px; background: #fff; border: 1px solid var(--dc-gray-300);
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-1); cursor: pointer;
+  border-radius: 2px; text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+.diaco-design .orders-toolbar .filter:hover { border-color: var(--dc-brown); }
+.diaco-design .orders-toolbar .filter.is-on { background: var(--dc-black); color: #fff; border-color: var(--dc-black); }
+.diaco-design .orders-toolbar .spacer { flex: 1; }
+
+/* Card grid */
+.diaco-design .orders-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+}
+@media (max-width: 1280px) { .diaco-design .orders-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px)  { .diaco-design .orders-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .diaco-design .orders-grid { grid-template-columns: 1fr; } }
+
+.diaco-design .order-card {
+  background: #fff; border: 1px solid var(--dc-gray-300);
+  display: flex; flex-direction: column; cursor: pointer;
+  text-decoration: none; color: inherit;
+  transition: border-color 180ms ease, transform 180ms ease;
+}
+.diaco-design .order-card:hover { border-color: var(--dc-brown); }
+.diaco-design .order-card__img {
+  aspect-ratio: 4/3;
+  background: #EFEAE2 center/cover no-repeat;
+  position: relative; border-bottom: 1px solid var(--dc-gray-200);
+}
+.diaco-design .order-card__img .b1 { position: absolute; top: 10px; left: 10px; }
+.diaco-design .order-card__img .b2 { position: absolute; top: 10px; right: 10px; }
+
+.diaco-design .order-card__body {
+  padding: 14px 16px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+
+/* Hierarchy adjusted per Arpit: end-customer-name + order number as PRIMARY */
+.diaco-design .order-card__title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--fg-1);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  margin: 0;
+}
+.diaco-design .order-card__title .num {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--dc-brown);
+  text-transform: none;
+  vertical-align: 0.07em;
+  margin-right: 6px;
+}
+
+.diaco-design .order-card__spec {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+  font-style: italic; margin-top: 2px;
+}
+
+/* Smaller meta line: client PO, rep, AM */
+.diaco-design .order-card__meta {
+  display: flex; flex-wrap: wrap; gap: 6px 10px;
+  font-family: var(--font-sans); font-size: 10px;
+  color: var(--fg-3); margin-top: 6px;
+}
+.diaco-design .order-card__meta .po {
+  font-family: var(--font-mono);
+  color: var(--dc-brown);
+  letter-spacing: 0.5px;
+}
+.diaco-design .order-card__meta .label {
+  color: var(--dc-brown); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+.diaco-design .order-card__foot {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--dc-gray-200);
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: var(--font-sans); font-size: 12px;
+}
+.diaco-design .order-card__foot .l { color: var(--fg-1); font-weight: 500; font-variant-numeric: tabular-nums; }
+.diaco-design .order-card__foot .r { color: var(--fg-3); font-style: italic; }
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.diaco-design .orders-empty {
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  padding: 64px 32px;
+  text-align: center;
+  font-family: var(--font-sans);
+  color: var(--fg-3);
+}
+.diaco-design .orders-empty h3 {
+  font-family: var(--font-display); font-size: 22px; font-weight: 600;
+  color: var(--fg-1); margin: 0 0 8px;
+}
+.diaco-design .orders-empty p { margin: 0 0 18px; font-style: italic; }
+
+/* ============================================================
+   ORDER DETAIL — sourced from DETAIL_DESIGN_REFERENCE.md
+   ============================================================ */
+
+/* Page-head variant used on the detail page (smaller title) */
+.diaco-design .order-head__title--detail {
+  font-size: 42px;
+  display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+}
+/* Order number in the title — IBM Plex Mono (decorative Playfair numerals look
+   weird at display size, esp. the dots inside zeros). */
+.diaco-design .order-head__num {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+/* End-customer name — Playfair Display, slightly muted */
+.diaco-design .order-head__name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--fg-3);
+}
+
+/* Uniform breadcrumb above the title — all items render identically */
+.diaco-design .breadcrumb {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.diaco-design .breadcrumb__item,
+.diaco-design .breadcrumb__sep {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dc-brown);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+.diaco-design .breadcrumb__back {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  text-decoration: none;
+  transition: opacity 160ms ease;
+}
+.diaco-design .breadcrumb__back:hover { opacity: 0.65; }
+.diaco-design .breadcrumb__sep { letter-spacing: 0; }
+
+/* Detail status pill (inline in the title) */
+.diaco-design .detail-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  padding: 6px 12px; border-radius: 2px;
+  background: #FBF1E9; color: var(--dc-brown); border: 1px solid #E8D7BF;
+}
+.diaco-design .detail-status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Two-column page layout */
+.diaco-design .order-page {
+  display: grid; grid-template-columns: 1fr 340px; gap: 28px; align-items: start;
+  margin-top: 20px;
+}
+.diaco-design .order-page__main {
+  min-width: 0; display: flex; flex-direction: column; gap: 20px;
+}
+.diaco-design .order-page__side {
+  display: flex; flex-direction: column; gap: 20px;
+  position: sticky; top: 24px;
+}
+@media (max-width: 1100px) {
+  .diaco-design .order-page { grid-template-columns: 1fr; }
+  .diaco-design .order-page__side { position: static; }
+}
+
+/* ============================================================
+   STAGE RIBBON
+   ============================================================ */
+.diaco-design .stage-ribbon {
+  display: grid;
+  grid-template-columns: repeat(var(--stage-cols, 4), 1fr);
+  background: #fff; border: 1px solid var(--dc-gray-300);
+}
+.diaco-design .ribbon-cell {
+  padding: 16px 14px; border-right: 1px solid var(--dc-gray-200);
+  position: relative;
+}
+.diaco-design .ribbon-cell:last-child { border-right: none; }
+.diaco-design .ribbon-cell .let {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--fg-3); text-transform: uppercase; letter-spacing: 1.5px;
+  margin-bottom: 4px;
+}
+.diaco-design .ribbon-cell .ttl {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  color: var(--fg-2); line-height: 1.3;
+}
+.diaco-design .ribbon-cell .sub {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3);
+  margin-top: 4px; line-height: 1.4;
+}
+.diaco-design .ribbon-cell.is-done { background: #FBF7F1; }
+.diaco-design .ribbon-cell.is-done .let,
+.diaco-design .ribbon-cell.is-done .ttl { color: var(--fg-1); }
+.diaco-design .ribbon-cell.is-done::before {
+  content: '✓'; position: absolute; top: 10px; right: 10px;
+  width: 16px; height: 16px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--dc-brown); color: #fff; border-radius: 50%; font-size: 10px;
+}
+.diaco-design .ribbon-cell.is-current { background: var(--dc-black); color: #fff; }
+.diaco-design .ribbon-cell.is-current .let { color: var(--dc-gold); }
+.diaco-design .ribbon-cell.is-current .ttl { color: #fff; font-weight: 600; }
+.diaco-design .ribbon-cell.is-current .sub { color: rgba(255, 255, 255, 0.72); }
+
+/* ============================================================
+   CAD HERO (gallery)
+   ============================================================ */
+.diaco-design .cad-hero {
+  background: #fff; border: 1px solid var(--dc-gray-300);
+  display: grid; grid-template-columns: 1.6fr 1fr; gap: 0;
+  overflow: hidden;
+}
+.diaco-design .cad-hero__main {
+  aspect-ratio: 16/11;
+  background: #EFEAE2 center/cover no-repeat;
+  border-right: 1px solid var(--dc-gray-200);
+  position: relative;
+}
+.diaco-design .cad-hero__main img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.diaco-design .cad-hero__main .hero-badge {
+  position: absolute; top: 16px; left: 16px;
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  padding: 4px 8px; background: var(--dc-gray-100); color: var(--fg-2);
+  border: 1px solid var(--dc-gray-300); border-radius: 2px;
+}
+.diaco-design .cad-hero__main .hero-3d {
+  position: absolute; bottom: 16px; right: 16px;
+  background: rgba(26, 26, 26, 0.88); color: #fff;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  padding: 8px 14px; border: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  text-decoration: none;
+  transition: background 160ms ease;
+}
+.diaco-design .cad-hero__main .hero-3d:hover { background: var(--dc-brown); }
+
+.diaco-design .cad-hero__thumbs {
+  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 1px;
+  background: var(--dc-gray-200);
+}
+.diaco-design .cad-hero__thumb {
+  background: #EFEAE2 center/cover no-repeat;
+  aspect-ratio: 1; position: relative;
+  border: none; padding: 0; cursor: pointer;
+  transition: opacity 160ms ease;
+}
+.diaco-design .cad-hero__thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.diaco-design .cad-hero__thumb:hover { opacity: 0.85; }
+.diaco-design .cad-hero__thumb.is-active { outline: 2px solid var(--dc-brown); outline-offset: -2px; }
+.diaco-design .cad-hero__thumb::after {
+  content: attr(data-n);
+  position: absolute; top: 8px; left: 10px;
+  font-family: var(--font-mono); font-size: 10px; color: #fff;
+  background: rgba(26, 26, 26, 0.7); padding: 2px 6px; border-radius: 2px;
+}
+
+.diaco-design .cad-hero__meta {
+  grid-column: 1 / -1;
+  padding: 14px 24px;
+  border-top: 1px solid var(--dc-gray-200);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+}
+.diaco-design .cad-hero__version {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-1);
+  min-width: 0; flex: 1 1 auto;
+}
+.diaco-design .cad-hero__actions {
+  display: inline-flex; align-items: center; gap: 10px;
+  flex-shrink: 0; white-space: nowrap;
+}
+.diaco-design .cad-hero__actions .btn { white-space: nowrap; flex-shrink: 0; }
+.diaco-design .cad-hero__version select {
+  font-family: var(--font-sans); font-size: 12px;
+  border: 1px solid var(--dc-gray-300); padding: 6px 10px; background: #fff;
+  border-radius: 2px;
+}
+
+/* Delivery note (was "notes from designer"; cream box below the gallery) */
+.diaco-design .cad-note {
+  background: #FBF7F1; border: 1px solid var(--dc-gray-300);
+  border-left: 2px solid var(--dc-brown);
+  padding: 14px 18px;
+  font-family: var(--font-sans); font-size: 13px;
+  color: var(--fg-2); line-height: 1.6;
+}
+.diaco-design .cad-note .eyebrow {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+/* ============================================================
+   KEY SPECS strip
+   ============================================================ */
+.diaco-design .key-specs {
+  display: grid;
+  grid-template-columns: repeat(var(--key-cols, 4), minmax(0, 1fr));
+  background: #fff; border: 1px solid var(--dc-gray-300);
+}
+@media (max-width: 1100px) { .diaco-design .key-specs { --key-cols: 2; } }
+@media (max-width: 600px)  { .diaco-design .key-specs { --key-cols: 1; } }
+.diaco-design .key-spec {
+  padding: 18px 22px; border-right: 1px solid var(--dc-gray-200);
+  display: flex; flex-direction: column; gap: 4px;
+  border-bottom: 1px solid var(--dc-gray-200);
+}
+.diaco-design .key-spec:last-child { border-right: none; }
+.diaco-design .key-spec__k {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+}
+.diaco-design .key-spec__v {
+  font-family: var(--font-sans); font-size: 15px; font-weight: 500; color: var(--fg-1);
+  overflow-wrap: anywhere;
+}
+.diaco-design .key-spec__n {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3); font-style: italic;
+}
+
+/* ============================================================
+   DESCRIPTION block
+   ============================================================ */
+.diaco-design .desc-block {
+  background: #fff; border: 1px solid var(--dc-gray-300); padding: 22px 24px;
+}
+.diaco-design .desc-block .eyebrow {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px;
+}
+.diaco-design .desc-block p {
+  font-family: var(--font-sans); font-size: 14px; color: var(--fg-1);
+  line-height: 1.7; margin: 0; max-width: 720px;
+}
+.diaco-design .desc-block .attrib {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+  font-style: italic; margin-top: 14px;
+}
+
+/* ============================================================
+   ITEMIZED QUOTE (collapsible card around the table)
+   ============================================================ */
+.diaco-design .quote-card {
+  background: #fff; border: 1px solid var(--dc-gray-300);
+}
+.diaco-design .quote-card.is-past { border-color: #EFC9C7; }
+.diaco-design .quote-card__head {
+  width: 100%; padding: 16px 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--dc-gray-100); border: none; border-bottom: 1px solid var(--dc-gray-200);
+  font-family: var(--font-sans); text-align: left;
+}
+.diaco-design .quote-card__head-left {
+  display: inline-flex; align-items: baseline; gap: 12px; min-width: 0;
+}
+.diaco-design .quote-card__head-right {
+  display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.diaco-design .quote-card__chev {
+  display: inline-flex; color: var(--fg-3);
+}
+.diaco-design .quote-card.is-past .quote-card__head {
+  background: #FBECEB; color: #991B1B;
+}
+.diaco-design .quote-card__head:hover { background: #FBF7F1; }
+.diaco-design .quote-card.is-past .quote-card__head:hover { background: #FBE2E0; }
+.diaco-design .quote-card__head .h-eyebrow {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--fg-3);
+}
+.diaco-design .quote-card.is-past .quote-card__head .h-eyebrow { color: #991B1B; }
+.diaco-design .quote-card__head .h-total {
+  font-family: var(--font-sans); font-size: 18px; font-weight: 500; color: var(--fg-1);
+  margin-left: 12px; font-variant-numeric: tabular-nums;
+}
+.diaco-design .quote-card.is-past .quote-card__head .h-total { color: #7F1D1D; }
+.diaco-design .quote-card__head .h-tag {
+  font-family: var(--font-sans); font-size: 11px; padding: 3px 8px;
+  border: 1px solid #EFC9C7; background: #FEE2E2; color: #991B1B; border-radius: 2px;
+  white-space: nowrap;
+}
+.diaco-design .quote-card__head .h-tag--warn {
+  background: #FEF3C7; color: #92400E; border-color: #FACC15;
+}
+.diaco-design .quote-card__body { padding: 16px 22px 20px; }
+
+.diaco-design .quote-card .past-warn {
+  background: #FBECEB; border: 1px solid #EFC9C7; color: #991B1B;
+  padding: 10px 14px; font-size: 12px; line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.diaco-design .quote-table {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--font-sans); font-size: 13px;
+}
+.diaco-design .quote-table tr { border-top: 1px solid var(--dc-gray-200); }
+.diaco-design .quote-table tr:first-child { border-top: none; }
+.diaco-design .quote-table td { padding: 10px 4px; vertical-align: top; }
+.diaco-design .quote-table td.q-label { color: var(--fg-1); font-weight: 500; }
+.diaco-design .quote-table td.q-label .sub { display: block; color: var(--fg-3); font-size: 12px; font-weight: 400; margin-top: 2px; }
+.diaco-design .quote-table td.q-label.indent { padding-left: 22px; color: var(--fg-2); font-weight: 400; }
+.diaco-design .quote-table td.q-qty { color: var(--fg-3); white-space: nowrap; font-size: 12px; font-variant-numeric: tabular-nums; }
+.diaco-design .quote-table td.q-total { text-align: right; color: var(--fg-1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.diaco-design .quote-table tr.q-group td.q-label { color: var(--dc-brown); text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+.diaco-design .quote-table tr.q-group td.q-total { color: var(--fg-1); font-weight: 500; }
+.diaco-design .quote-table tr.q-total td {
+  border-top: 2px solid var(--dc-black);
+  padding-top: 14px; font-size: 15px; font-weight: 500; color: var(--fg-1);
+}
+.diaco-design .quote-table tr.q-total td.q-total { text-align: right; }
+
+.diaco-design .quote-card .meta-notes {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--dc-gray-200);
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3); line-height: 1.6;
+}
+
+/* ============================================================
+   INSTRUCTION HISTORY (thread)
+   ============================================================ */
+.diaco-design .ihist {
+  background: #fff; border: 1px solid var(--dc-gray-300);
+}
+.diaco-design .ihist__head {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--dc-gray-200);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.diaco-design .ihist__head h4 {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--fg-1); margin: 0;
+}
+.diaco-design .ihist__head .meta {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3); font-style: italic;
+}
+.diaco-design .ihist__thread { padding: 20px 22px; display: flex; flex-direction: column; gap: 22px; }
+/* When the thread lives inside a Collapsible body (no separate .ihist wrapper),
+   the Collapsible already supplies the padding — drop the duplicate. */
+.diaco-design .coll__body .ihist__thread--inline { padding: 0; }
+
+.diaco-design .ih-msg {
+  display: grid; grid-template-columns: 36px 1fr; gap: 14px;
+  position: relative;
+}
+.diaco-design .ih-msg::before {
+  content: ''; position: absolute; left: 17px; top: 38px; bottom: -26px;
+  width: 1px; background: var(--dc-gray-200);
+}
+.diaco-design .ih-msg:last-child::before { display: none; }
+
+.diaco-design .ih-msg__av {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: #fff;
+  flex-shrink: 0; z-index: 1;
+}
+.diaco-design .ih-msg__av.dc { background: var(--dc-black); }
+.diaco-design .ih-msg__av.us { background: var(--dc-brown); }
+
+.diaco-design .ih-msg__head {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.diaco-design .ih-msg__name {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--fg-1);
+}
+.diaco-design .ih-msg__role {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+}
+.diaco-design .ih-msg__time {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3); font-style: italic;
+  margin-left: auto;
+}
+.diaco-design .ih-msg__body {
+  font-family: var(--font-sans); font-size: 13px; color: var(--fg-2); line-height: 1.6;
+}
+.diaco-design .ih-msg__body .event {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1px;
+}
+.diaco-design .ih-msg__body p {
+  margin: 8px 0 0; font-size: 13px; color: var(--fg-2); line-height: 1.6;
+}
+
+/* ============================================================
+   COLLAPSIBLE detail card
+   ============================================================ */
+.diaco-design .coll {
+  background: #fff; border: 1px solid var(--dc-gray-300);
+}
+.diaco-design .coll__head {
+  padding: 16px 22px; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  background: none; border: none; width: 100%; text-align: left;
+  transition: background 160ms ease;
+  font-family: var(--font-sans);
+}
+.diaco-design .coll__head:hover { background: #FBF7F1; }
+.diaco-design .coll__head h4 {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--fg-1); margin: 0;
+  display: flex; align-items: center; gap: 8px;
+}
+.diaco-design .coll__head h4 .count { color: var(--fg-3); font-weight: 400; font-size: 12px; }
+.diaco-design .coll__head .chev { color: var(--fg-3); transition: transform 160ms ease; display: inline-flex; }
+.diaco-design .coll.is-open .coll__head .chev { transform: rotate(90deg); color: var(--dc-brown); }
+.diaco-design .coll__body { padding: 6px 22px 22px; border-top: 1px solid var(--dc-gray-200); }
+
+/* Key-value grid used inside collapsible bodies */
+.diaco-design .kv-grid {
+  display: grid; grid-template-columns: 130px 1fr; gap: 10px 18px;
+  font-family: var(--font-sans); font-size: 13px;
+}
+.diaco-design .kv-grid .k {
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+  font-size: 10px; font-weight: 600; padding-top: 2px;
+}
+.diaco-design .kv-grid .v { color: var(--fg-1); }
+.diaco-design .kv-grid .v .sub { display: block; color: var(--fg-3); font-size: 12px; margin-top: 2px; font-style: italic; }
+
+/* Two-column kv grid (customer + drop ship side by side) */
+.diaco-design .kv-two {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+}
+@media (max-width: 700px) { .diaco-design .kv-two { grid-template-columns: 1fr; } }
+
+/* Uploaded files row */
+.diaco-design .uploaded-list { display: flex; flex-direction: column; gap: 8px; }
+.diaco-design .uploaded-row {
+  display: grid; grid-template-columns: 32px 1fr auto 28px;
+  gap: 12px; align-items: center;
+  padding: 10px 14px; background: var(--dc-gray-050);
+  border: 1px solid var(--dc-gray-200);
+  text-decoration: none; color: inherit;
+}
+.diaco-design .uploaded-row:hover { border-color: var(--dc-brown); }
+.diaco-design .uploaded-row .ico { color: var(--dc-brown); }
+.diaco-design .uploaded-row .n { font-family: var(--font-sans); font-size: 13px; color: var(--fg-1); font-weight: 500; }
+.diaco-design .uploaded-row .label { font-family: var(--font-sans); font-size: 11px; color: var(--fg-3); margin-top: 2px; font-style: italic; }
+.diaco-design .uploaded-row .meta { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+.diaco-design .uploaded-row .dl {
+  color: var(--fg-3); background: none; border: none; cursor: pointer;
+  width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+}
+.diaco-design .uploaded-row:hover .dl { color: var(--dc-brown); }
+.diaco-design .uploaded-group { margin-bottom: 18px; }
+.diaco-design .uploaded-group:last-child { margin-bottom: 0; }
+.diaco-design .uploaded-group__head {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+  margin-bottom: 6px;
+}
+.diaco-design .uploaded-group__sub {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3); font-style: italic;
+  margin: 0 0 8px;
+}
+
+/* ============================================================
+   RIGHT-RAIL: ACTION CARD
+   ============================================================ */
+.diaco-design .action-card {
+  background: #fff; border: 2px solid var(--dc-brown); padding: 22px 24px;
+}
+.diaco-design .action-card__eyebrow {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+.diaco-design .action-card__title {
+  font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  color: var(--fg-1); line-height: 1.2; margin: 0 0 8px;
+}
+.diaco-design .action-card__sub {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+  font-style: italic; line-height: 1.6; margin: 0 0 18px;
+}
+.diaco-design .action-card__quote {
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  padding: 14px 0; margin-bottom: 14px;
+  border-top: 1px solid var(--dc-gray-200);
+  border-bottom: 1px solid var(--dc-gray-200);
+  font-family: var(--font-sans); font-size: 13px;
+}
+.diaco-design .action-card__quote .l { color: var(--fg-3); }
+.diaco-design .action-card__quote .v {
+  font-family: var(--font-sans); font-size: 24px; font-weight: 300; color: var(--fg-1);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.diaco-design .action-card__rows { display: flex; flex-direction: column; gap: 8px; }
+.diaco-design .action-card__rows .row {
+  display: flex; justify-content: space-between; font-family: var(--font-sans);
+  font-size: 12px; color: var(--fg-2);
+}
+.diaco-design .action-card__rows .row strong { color: var(--fg-1); font-weight: 500; }
+.diaco-design .action-card__actions { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
+.diaco-design .action-card__actions .btn { width: 100%; justify-content: center; }
+.diaco-design .action-card__disclaimer {
+  font-family: var(--font-sans); font-size: 11px; color: var(--dc-red);
+  line-height: 1.5; margin: 6px 0 0;
+}
+.diaco-design .action-card__note {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3);
+  line-height: 1.5; margin: 6px 0 0;
+}
+
+/* Priority rush block */
+.diaco-design .rush-block {
+  background: #FBF7F1; border: 1px solid var(--dc-gray-200);
+  padding: 14px 16px; margin: 4px 0 18px;
+}
+.diaco-design .rush-block__label {
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+}
+.diaco-design .rush-block__label input[type="checkbox"] {
+  margin-top: 3px; accent-color: var(--dc-brown);
+}
+.diaco-design .rush-block__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+}
+.diaco-design .rush-block__name {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--fg-1);
+}
+.diaco-design .rush-block__fee {
+  font-family: var(--font-sans); font-size: 13px; color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+.diaco-design .rush-block__sub {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3);
+  line-height: 1.5; margin: 4px 0 0;
+}
+.diaco-design .rush-block__ship {
+  margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--dc-gray-300);
+  font-family: var(--font-sans); font-size: 12px;
+}
+.diaco-design .rush-block__ship .k {
+  font-size: 10px; font-weight: 600; color: var(--dc-brown);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+.diaco-design .rush-block__ship .v { color: var(--fg-1); margin-top: 2px; font-weight: 500; }
+.diaco-design .rush-block__ship .v .days { color: var(--fg-3); font-weight: 400; margin-left: 8px; }
+.diaco-design .rush-block__ship.is-rush .v .days { color: #166534; }
+
+/* ============================================================
+   RIGHT-RAIL: PRODUCTION PREVIEW
+   ============================================================ */
+.diaco-design .side-summary {
+  background: #fff; border: 1px solid var(--dc-gray-300);
+}
+.diaco-design .side-summary__head { padding: 18px 22px 14px; border-bottom: 1px solid var(--dc-gray-200); }
+.diaco-design .side-summary__head .eyebrow {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px;
+}
+.diaco-design .side-summary__head .tt {
+  font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--fg-1);
+}
+.diaco-design .side-summary__body { padding: 10px 22px 18px; }
+.diaco-design .summary-row {
+  display: grid; grid-template-columns: 32px 1fr; gap: 14px;
+  padding: 10px 0; border-bottom: 1px solid var(--dc-gray-200);
+  font-family: var(--font-sans); font-size: 12px;
+  align-items: baseline;
+}
+.diaco-design .summary-row:last-child { border-bottom: none; }
+.diaco-design .summary-row .k {
+  color: var(--dc-brown); font-family: var(--font-sans); font-weight: 300;
+  font-size: 20px; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.diaco-design .summary-row .v { color: var(--fg-2); line-height: 1.5; min-width: 0; }
+.diaco-design .summary-row .v strong { display: block; color: var(--fg-1); font-weight: 500; }
+
+/* Wide-label variant — used by the new-order form's Live Summary and
+   "What happens next" panels, where labels are words ("Finish", "0–2 h",
+   "On approval") instead of single chars. Matches the reference's 88px
+   column. */
+.diaco-design .side-summary--wide .summary-row {
+  grid-template-columns: 92px 1fr;
+  gap: 16px;
+}
+.diaco-design .side-summary--wide .summary-row .k {
+  color: var(--dc-brown);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 10px;
+  font-weight: 600;
+  padding-top: 2px;
+  white-space: nowrap;
+}
+.diaco-design .side-summary--wide .summary-row .v {
+  color: var(--fg-1);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.diaco-design .side-summary--wide .summary-row .v em {
+  font-style: italic; color: var(--fg-3);
+}
+
+.diaco-design .side-summary__foot {
+  border-top: 1px solid var(--dc-gray-200); padding: 14px 22px 18px;
+}
+.diaco-design .side-summary__foot .k {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+}
+.diaco-design .side-summary__foot .v {
+  font-family: var(--font-sans); font-size: 15px; font-weight: 500; color: var(--fg-1);
+  margin-top: 4px;
+}
+.diaco-design .side-summary__foot .note {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3);
+  font-style: italic; line-height: 1.5; margin-top: 6px;
+}
+
+/* Button variants used on detail page (extending the orders-list set) */
+.diaco-design .btn--ghost {
+  background: transparent; color: var(--fg-1); border-color: transparent;
+  padding-left: 6px; padding-right: 6px;
+}
+.diaco-design .btn--ghost:hover { background: transparent; color: var(--dc-brown); border-color: transparent; }
+.diaco-design .btn--danger {
+  background: #fff; color: var(--dc-red); border-color: var(--dc-gray-300);
+}
+.diaco-design .btn--danger:hover { background: var(--dc-red); color: #fff; border-color: var(--dc-red); }
+.diaco-design .btn--sm { padding: 6px 12px; font-size: 12px; }
+.diaco-design .btn:disabled,
+.diaco-design .btn[disabled] {
+  background: var(--dc-gray-100); color: var(--fg-3); border-color: var(--dc-gray-200);
+  cursor: not-allowed;
+}
+.diaco-design .btn:disabled:hover,
+.diaco-design .btn[disabled]:hover {
+  background: var(--dc-gray-100); color: var(--fg-3); border-color: var(--dc-gray-200);
+}
+
+/* Small inline link-like button used in CAD gallery meta */
+.diaco-design .inline-link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+  text-decoration: none;
+}
+.diaco-design .inline-link:hover { color: var(--dc-brown); }
+
+/* Hero is now clickable — give it a pointer + subtle hover */
+.diaco-design .cad-hero__main {
+  cursor: zoom-in;
+  outline: none;
+  border: none; padding: 0; text-align: inherit;
+}
+.diaco-design .cad-hero__main:focus-visible { outline: 2px solid var(--dc-brown); outline-offset: -2px; }
+.diaco-design .cad-hero__thumb { cursor: zoom-in; }
+
+/* ============================================================
+   CAD LIGHTBOX — full-screen modal viewer
+   ============================================================ */
+.diaco-design .cad-lightbox {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15, 15, 15, 0.86);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 60px;
+  backdrop-filter: blur(2px);
+}
+.diaco-design .cad-lightbox__stage {
+  position: relative;
+  max-width: min(1200px, 100%);
+  max-height: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.diaco-design .cad-lightbox__img {
+  max-width: 100%; max-height: calc(100vh - 120px);
+  object-fit: contain; display: block;
+  background: #1a1a1a;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+.diaco-design .cad-lightbox__caption {
+  font-family: var(--font-sans); font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  display: inline-flex; align-items: baseline; gap: 14px;
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+.diaco-design .cad-lightbox__count {
+  font-family: var(--font-mono); font-size: 11px;
+  color: rgba(255, 255, 255, 0.55); letter-spacing: 0.5px;
+}
+
+.diaco-design .cad-lightbox__close,
+.diaco-design .cad-lightbox__nav {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  width: 44px; height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.diaco-design .cad-lightbox__close:hover,
+.diaco-design .cad-lightbox__nav:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.diaco-design .cad-lightbox__close { top: 16px; right: 16px; }
+.diaco-design .cad-lightbox__nav--prev { left: 16px; top: 50%; transform: translateY(-50%); }
+.diaco-design .cad-lightbox__nav--next { right: 16px; top: 50%; transform: translateY(-50%); }
+
+/* ============================================================
+   HISTORY PAGE — month section headers + shipped list
+   ============================================================ */
+.diaco-design .sec-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 18px; margin: 0 0 14px;
+}
+.diaco-design .sec-row h3 {
+  font-family: var(--font-display); font-size: 22px; font-weight: 600;
+  color: var(--fg-1); margin: 0; letter-spacing: -0.005em;
+}
+.diaco-design .sec-eyebrow {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 2px;
+  margin-bottom: 6px; display: block;
+}
+.diaco-design .sec-row__total {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+  font-style: italic; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.diaco-design .shipped-list {
+  background: #fff; border: 1px solid var(--dc-gray-300);
+}
+.diaco-design .shipped-row {
+  display: grid;
+  grid-template-columns: 56px 1.4fr 1.2fr 130px 130px 80px;
+  gap: 16px; align-items: center;
+  padding: 14px 22px;
+  border-top: 1px solid var(--dc-gray-200);
+  cursor: pointer;
+  text-decoration: none; color: inherit;
+  transition: background 160ms ease;
+}
+.diaco-design .shipped-row:first-child { border-top: none; }
+.diaco-design .shipped-row:hover { background: #FBF7F1; }
+.diaco-design .shipped-row .img {
+  width: 56px; height: 56px;
+  background: #EFEAE2 center/cover no-repeat;
+  border: 1px solid var(--dc-gray-300);
+}
+.diaco-design .shipped-row .name {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+  color: var(--fg-1); line-height: 1.3; letter-spacing: 0.5px;
+}
+.diaco-design .shipped-row .po {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3);
+  margin-top: 3px; line-height: 1.4;
+}
+.diaco-design .shipped-row .spec {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-2);
+  line-height: 1.5;
+}
+.diaco-design .shipped-row .spec .mono {
+  font-family: var(--font-mono); color: var(--dc-brown);
+  letter-spacing: 0.5px; font-size: 11px;
+}
+.diaco-design .shipped-row .when {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-2);
+}
+.diaco-design .shipped-row .when strong {
+  color: var(--fg-1); display: block; font-weight: 500; font-size: 13px;
+}
+.diaco-design .shipped-row .total {
+  font-family: var(--font-sans); font-size: 14px; color: var(--fg-1);
+  font-variant-numeric: tabular-nums; text-align: right; font-weight: 500;
+}
+.diaco-design .shipped-row .reorder {
+  text-align: right;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+  cursor: pointer; border: none; background: none;
+  transition: opacity 160ms ease;
+}
+.diaco-design .shipped-row .reorder:disabled {
+  color: var(--fg-3); cursor: not-allowed;
+}
+.diaco-design .shipped-row .reorder:not(:disabled):hover { text-decoration: underline; }
+
+@media (max-width: 1100px) {
+  .diaco-design .shipped-row {
+    grid-template-columns: 56px 1fr 1fr 120px;
+    grid-template-areas:
+      "img name when total"
+      "img spec spec total";
+    row-gap: 6px;
+  }
+  .diaco-design .shipped-row .img { grid-area: img; }
+  .diaco-design .shipped-row .reorder { display: none; }
+}
+
+/* ============================================================
+   NEW ORDER FORM — sectioned collapsibles, fields, dropzone,
+   pills, finish-point cards, save indicator, submit bar.
+   Sourced from DETAIL_DESIGN_REFERENCE.md.
+   ============================================================ */
+
+/* Save indicator (in the order-head sub-line) */
+.diaco-design .save-indicator {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--fg-3);
+}
+.diaco-design .save-indicator--ok { color: #166534; font-style: normal; font-weight: 500; }
+.diaco-design .save-indicator--error { color: var(--dc-red); font-style: normal; }
+
+/* Free-quote banner */
+.diaco-design .quote-banner {
+  display: flex; gap: 14px; align-items: center;
+  background: #FBF7F1; border: 1px solid var(--dc-gray-300);
+  padding: 14px 20px; margin: 0 0 24px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--fg-2); line-height: 1.5;
+}
+.diaco-design .quote-banner__ico {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--dc-brown); color: #fff; border-radius: 50%; flex-shrink: 0;
+}
+.diaco-design .quote-banner strong { color: var(--fg-1); font-weight: 600; }
+
+/* Collapsible numbered section */
+.diaco-design .osec {
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  transition: border-color 180ms ease;
+}
+.diaco-design .osec.is-open { border-color: var(--dc-brown); }
+.diaco-design .osec__head {
+  display: grid;
+  /* 5 columns: num | title | summary | warn | chev. The warn column
+     is always present (icon toggles visibility) so titles stay
+     aligned row-to-row regardless of which sections are warning. */
+  grid-template-columns: 52px 1fr auto auto auto;
+  gap: 20px; align-items: center;
+  padding: 20px 24px; cursor: pointer;
+  background: none; border: none; width: 100%; text-align: left;
+  border-bottom: 1px solid transparent;
+  transition: background 160ms ease, border-color 160ms ease;
+  font-family: var(--font-sans);
+}
+.diaco-design .osec.is-open .osec__head { border-bottom-color: var(--dc-gray-200); }
+.diaco-design .osec__head:hover { background: #FBF7F1; }
+.diaco-design .osec__num {
+  font-family: var(--font-sans); font-size: 28px; font-weight: 300;
+  color: var(--dc-brown); line-height: 1;
+}
+.diaco-design .osec__title {
+  font-family: var(--font-display); font-size: 20px; font-weight: 600;
+  color: var(--fg-1); line-height: 1.2;
+  display: flex; align-items: center; gap: 10px;
+}
+.diaco-design .osec__title .req {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+}
+.diaco-design .osec__title .opt {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 500;
+  color: var(--fg-3); text-transform: uppercase; letter-spacing: 1.5px;
+  font-style: italic;
+}
+.diaco-design .osec__sub {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+  font-style: italic; margin-top: 4px;
+  display: block;
+}
+.diaco-design .osec__summary {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-2);
+  text-align: right; line-height: 1.5;
+}
+.diaco-design .osec__summary strong {
+  color: var(--fg-1); font-weight: 500; display: block; font-style: normal;
+}
+.diaco-design .osec__chev {
+  width: 32px; height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--fg-3);
+  transition: color 160ms ease, transform 200ms ease;
+}
+.diaco-design .osec.is-open .osec__chev { transform: rotate(90deg); color: var(--dc-brown); }
+.diaco-design .osec__body { padding: 8px 24px 30px 96px; }
+.diaco-design .osec__body .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.diaco-design .osec__body .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+/* Vertical rhythm for section body children — fields, textareas, dropzones,
+   pills all need breathing room from each other. */
+.diaco-design .osec__body > * + * { margin-top: 22px; }
+.diaco-design .osec__body > .describe + .hint { margin-top: 6px; }
+.diaco-design .osec__body > .hint + .dropzone { margin-top: 18px; }
+.diaco-design .osec__body > .dropzone + .uploaded-list { margin-top: 14px; }
+@media (max-width: 900px) {
+  .diaco-design .osec__body { padding: 4px 18px 22px 18px; }
+  .diaco-design .osec__body .row-2 { grid-template-columns: 1fr; }
+}
+
+/* Field — labelled input */
+.diaco-design .field {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;
+}
+.diaco-design .field:last-child { margin-bottom: 0; }
+.diaco-design .field label {
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+  color: var(--dc-brown); text-transform: uppercase; letter-spacing: 1.5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.diaco-design .field label .opt {
+  font-style: italic; color: var(--fg-3);
+  text-transform: none; letter-spacing: 0; font-weight: 400;
+}
+
+/* Checkbox-with-description row (engraving "Use my logo", future toggles). */
+.diaco-design .checkbox-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  cursor: pointer;
+  padding: 12px 14px;
+  background: var(--dc-gray-050);
+  border: 1px solid var(--dc-gray-200);
+  border-radius: 2px;
+}
+.diaco-design .checkbox-row input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--dc-brown);
+  flex-shrink: 0;
+}
+.diaco-design .checkbox-row__title {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+.diaco-design .checkbox-row__sub {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--fg-3);
+  font-style: italic;
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+/* Inline preview inside an active finish-card. Used to show the
+   customer's on-file account address when "Ship to my account
+   address" is selected in Section 08. */
+.diaco-design .finish-card__preview {
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid var(--dc-gray-200);
+  border-left: 2px solid var(--dc-brown);
+  font-family: var(--font-sans);
+}
+.diaco-design .finish-card__preview-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-1);
+  margin-bottom: 4px;
+}
+.diaco-design .finish-card__preview-line {
+  font-size: 12px;
+  color: var(--fg-2);
+  line-height: 1.6;
+}
+.diaco-design .finish-card__preview-line--muted {
+  color: var(--fg-3);
+  font-style: italic;
+}
+
+/* Disabled / locked text input — used for the country field in 2B */
+.diaco-design .field input:disabled,
+.diaco-design .field input[readonly] {
+  background: var(--dc-gray-100);
+  color: var(--fg-3);
+  cursor: not-allowed;
+}
+
+/* Inline error state on a field (e.g., ZIP regex mismatch) */
+.diaco-design .field--error input,
+.diaco-design .field--error select {
+  border-color: var(--dc-red);
+}
+.diaco-design .field--error input:focus,
+.diaco-design .field--error select:focus {
+  border-color: var(--dc-red);
+}
+.diaco-design .field__error {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--dc-red);
+  font-style: normal;
+}
+
+/* ─── Repeating metal rows (Section 04) ───────────────────────── */
+.diaco-design .metal-rows {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.diaco-design .metal-row {
+  /* Padding tightened ~25% from the previous 16px 18px → 12px 14px. */
+  background: var(--dc-gray-050);
+  border: 1px solid var(--dc-gray-200);
+  padding: 12px 14px;
+}
+.diaco-design .metal-row__head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.diaco-design .metal-row__num {
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 600;
+  color: var(--dc-brown);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+.diaco-design .metal-row__remove {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; padding: 4px 8px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 500;
+  color: var(--fg-3);
+  text-transform: uppercase; letter-spacing: 1px;
+  transition: color 160ms ease;
+}
+.diaco-design .metal-row__remove:hover { color: var(--dc-red); }
+
+/* 3-column grid for the three controls. Each field has min-width so columns
+   gracefully wrap on narrow viewports (Area drops to its own row first).
+   align-items: start keeps the inline error/hint from misaligning siblings. */
+.diaco-design .metal-row__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 14px;
+  align-items: start;
+}
+.diaco-design .metal-row__grid .field { margin-bottom: 0; }
+
+.diaco-design .metal-add {
+  align-self: flex-start;
+  margin-top: 14px;
+}
+
+/* ─── Repeating stone rows (Section 05 + 06) ─────────────────── */
+.diaco-design .stone-rows {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 14px;
+}
+.diaco-design .stone-row {
+  background: var(--dc-gray-050);
+  border: 1px solid var(--dc-gray-200);
+  padding: 12px 14px;
+}
+.diaco-design .stone-row__head {
+  display: flex; align-items: center;
+  margin-bottom: 10px;
+}
+/* Toggle variant: whole head bar is clickable. When the row is
+   collapsed, the bottom margin collapses too so the bar is a
+   one-line strip. */
+.diaco-design .stone-row__head--toggle {
+  cursor: pointer;
+  user-select: none;
+}
+.diaco-design .stone-row__head--toggle:hover .stone-row__num,
+.diaco-design .stone-row__head--toggle:hover .stone-row__chevron {
+  color: var(--dc-black);
+}
+.diaco-design .stone-row__head--toggle:focus-visible {
+  outline: 2px solid var(--dc-brown);
+  outline-offset: 2px;
+}
+.diaco-design .stone-row--collapsed .stone-row__head--toggle {
+  margin-bottom: 0;
+}
+.diaco-design .stone-row__num {
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 600;
+  color: var(--dc-brown);
+  text-transform: uppercase; letter-spacing: 1.5px;
+  transition: color 160ms ease;
+}
+/* Collapsed summary text — sits to the right of the number, single-line
+   ellipsis if it overflows. Title-case-ish, normal weight, muted. */
+.diaco-design .stone-row__summary {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--fg-2);
+  margin-left: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+/* Pushes the chevron + remove to the right edge. */
+.diaco-design .stone-row__head-spacer {
+  flex: 1 1 auto;
+}
+.diaco-design .stone-row__chevron {
+  display: inline-flex; align-items: center;
+  color: var(--fg-3);
+  margin-right: 6px;
+  transition: color 160ms ease;
+}
+/* Per-row submit-readiness warning on the collapsed head. Sits before
+   the row number; native title tooltip lists the specific missing
+   fields. Brand gold keeps the palette tight — the triangle shape
+   already carries the "attention" signal. */
+.diaco-design .stone-row__warn {
+  display: inline-flex; align-items: center;
+  color: var(--dc-gold);
+  margin-right: 8px;
+  cursor: help;
+}
+.diaco-design .stone-row__remove {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; padding: 4px 8px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 500;
+  color: var(--fg-3);
+  text-transform: uppercase; letter-spacing: 1px;
+  transition: color 160ms ease;
+}
+.diaco-design .stone-row__remove:hover { color: var(--dc-red); }
+/* Tighten the collapsed card's vertical padding so it reads as a
+   compact one-liner. Expanded stays at the original 12px. */
+.diaco-design .stone-row--collapsed {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* Each row of fields inside the stone card uses the same 3-col adaptive
+   grid as metals. Multiple .stone-row__grid blocks stack vertically. */
+.diaco-design .stone-row__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px 14px;
+  align-items: start;
+  margin-top: 10px;
+}
+.diaco-design .stone-row__grid:first-of-type { margin-top: 0; }
+.diaco-design .stone-row__grid .field { margin-bottom: 0; }
+
+/* A filler cell so the grid stays balanced when only 2 of 3 cells are
+   used (color stones row 2: Carat | Cert | (filler)). */
+.diaco-design .stone-row__filler { visibility: hidden; }
+
+/* Section 06: Lab-Grown Diamond + Dia-Co auto-quality display. Read-only
+   informational line shown in place of the Color/Clarity dropdowns,
+   muted typographic register matching .field .hint. */
+.diaco-design .stone-row__lab-quality {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--fg-3);
+  font-style: italic;
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: var(--bg-subtle);
+  border-radius: 4px;
+}
+
+.diaco-design .stone-add {
+  align-self: flex-start;
+  margin-top: 14px;
+}
+
+/* Range groups — two inputs/selects with "to" between, inline. */
+.diaco-design .range-group {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+.diaco-design .range-group input,
+.diaco-design .range-group select {
+  min-width: 0; /* allow shrink inside the grid cell */
+}
+.diaco-design .range-group__sep {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--fg-3);
+  font-style: italic;
+  text-align: center;
+  padding: 0 2px;
+}
+
+/* Supply disclaimer banner — reuses the .quote-banner shell, with a
+   small tweak: appears inside a section body, so the bottom margin
+   shrinks to play nice with the disclaimer-then-rows stack. */
+.diaco-design .stone-supply-banner {
+  margin: 0 0 14px;
+}
+
+/* Color-stone sub-type dropdown stacks directly below the top-level
+   Type select within the same .field cell. */
+.diaco-design .stone-row__subtype {
+  margin-top: 6px;
+}
+
+/* Case D (Other) — description input takes the middle grid cell with
+   a slightly wider feel since shape is absent. */
+.diaco-design .stone-row__desc input {
+  width: 100%;
+}
+
+/* ─── Certification multi-select dropdown ─
+   Replaces a native <select> in the cert field. Trigger visually
+   matches the surrounding .field input/select (same padding, border,
+   radius, focus color). Panel floats below the trigger with checkbox
+   items. */
+.diaco-design .cert-multiselect {
+  position: relative;
+  width: 100%;
+}
+.diaco-design .cert-multiselect__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-1);
+  padding: 11px 14px;
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 160ms ease;
+}
+.diaco-design .cert-multiselect__trigger:hover,
+.diaco-design .cert-multiselect__trigger[aria-expanded="true"] {
+  border-color: var(--dc-brown);
+}
+.diaco-design .cert-multiselect__placeholder {
+  color: var(--fg-3);
+}
+.diaco-design .cert-multiselect__chevron {
+  margin-left: 8px;
+  color: var(--fg-3);
+  font-size: 12px;
+}
+.diaco-design .cert-multiselect__panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  border-radius: 2px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.diaco-design .cert-multiselect__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-1);
+  cursor: pointer;
+  user-select: none;
+}
+.diaco-design .cert-multiselect__item:hover {
+  background: var(--dc-gray-100);
+}
+.diaco-design .cert-multiselect__item input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* ─── Field info button (Finish label has the (i) trigger) ─ */
+.diaco-design .field-info-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  background: transparent; border: none; padding: 0; cursor: pointer;
+  color: var(--fg-3);
+  margin-left: 4px;
+  border-radius: 50%;
+  transition: color 160ms ease, background 160ms ease;
+}
+.diaco-design .field-info-btn:hover {
+  color: var(--dc-brown);
+  background: var(--dc-gray-100);
+}
+
+/* ─── Finish reference modal (portal-rendered, global) ─────────── */
+/* Lives on document.body via React portal, so .diaco-design scoping
+   wouldn't reach it — class rules are defined at root scope. */
+.finish-modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(15, 15, 15, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.finish-modal {
+  background: #fff;
+  border: 1px solid #E0E0E0;
+  width: min(600px, 100%);
+  max-height: 80vh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-plex), -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+.finish-modal__head {
+  padding: 14px 18px;
+  border-bottom: 1px solid #F0F0F0;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.finish-modal__title {
+  font-family: var(--font-playfair), Georgia, serif;
+  font-size: 18px; font-weight: 600;
+  color: #1A1A1A;
+  margin: 0;
+  letter-spacing: -0.005em;
+}
+.finish-modal__close {
+  background: none; border: none; cursor: pointer;
+  color: #999999;
+  width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color 160ms ease;
+}
+.finish-modal__close:hover { color: #8B7355; }
+.finish-modal__body {
+  padding: 18px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+.finish-modal__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.finish-modal__note {
+  padding: 12px 18px;
+  border-top: 1px solid #F0F0F0;
+  font-size: 11px;
+  color: #999999;
+  font-style: italic;
+  line-height: 1.5;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .finish-modal-backdrop { padding: 0; }
+  .finish-modal {
+    width: 100%; height: 100vh; max-height: 100vh;
+    border: none;
+  }
+}
+.diaco-design .field input,
+.diaco-design .field select,
+.diaco-design .field textarea {
+  font-family: var(--font-sans); font-size: 14px; color: var(--fg-1);
+  padding: 11px 14px; border: 1px solid var(--dc-gray-300); background: #fff;
+  border-radius: 2px; outline: none;
+  transition: border-color 160ms ease;
+}
+.diaco-design .field input:focus,
+.diaco-design .field select:focus,
+.diaco-design .field textarea:focus { border-color: var(--dc-brown); }
+.diaco-design .field .hint {
+  font-family: var(--font-sans); font-size: 11px; color: var(--fg-3);
+  font-style: italic;
+}
+
+/* Big describe textarea (used in section 02) */
+.diaco-design .describe {
+  font-family: var(--font-sans); font-size: 15px; color: var(--fg-1);
+  padding: 20px; border: 1px solid var(--dc-gray-300); background: #fff;
+  border-radius: 2px; outline: none; width: 100%; min-height: 160px;
+  line-height: 1.7; resize: vertical;
+  transition: border-color 160ms ease;
+}
+.diaco-design .describe:focus { border-color: var(--dc-brown); }
+
+/* File dropzone */
+.diaco-design .dropzone {
+  display: block;
+  border: 2px dashed var(--dc-gray-300);
+  padding: 32px 24px; text-align: center;
+  background: #fff;
+  transition: border-color 160ms ease, background 160ms ease;
+  cursor: pointer;
+  margin-top: 18px;
+}
+.diaco-design .dropzone:hover,
+.diaco-design .dropzone.is-drag { border-color: var(--dc-brown); background: #FBF7F1; }
+.diaco-design .dropzone__icon { color: var(--dc-brown); margin-bottom: 8px; }
+.diaco-design .dropzone__title {
+  font-family: var(--font-display); font-size: 17px; color: var(--fg-1);
+  margin-bottom: 4px; font-weight: 600;
+}
+.diaco-design .dropzone__sub { font-size: 12px; color: var(--fg-3); }
+
+/* Staged-files list (extends existing uploaded-row pattern) */
+.diaco-design .uploaded-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding: 0; }
+
+/* Pill row (product type) */
+.diaco-design .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.diaco-design .pill {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  padding: 9px 16px; border: 1px solid var(--dc-gray-300); background: #fff;
+  color: var(--fg-1); cursor: pointer; border-radius: 2px;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.diaco-design .pill:hover { border-color: var(--dc-brown); color: var(--dc-brown); }
+.diaco-design .pill.is-active {
+  background: var(--dc-black); color: #fff; border-color: var(--dc-black);
+}
+
+/* Finish-point cards (vertical, visible help text) */
+.diaco-design .finish-cards {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 6px;
+}
+.diaco-design .finish-card {
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+  font-family: var(--font-sans);
+}
+.diaco-design .finish-card:hover { border-color: var(--dc-brown); background: #FBF7F1; }
+.diaco-design .finish-card.is-active {
+  border-color: var(--dc-brown);
+  background: #FBF7F1;
+  box-shadow: inset 4px 0 0 var(--dc-brown);
+}
+.diaco-design .finish-card__title {
+  font-family: var(--font-sans); font-size: 14px; font-weight: 600;
+  color: var(--fg-1); margin-bottom: 4px;
+}
+.diaco-design .finish-card__help {
+  font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
+  line-height: 1.5;
+}
+
+/* Submit bar — sticky bottom */
+.diaco-design .submit-bar {
+  background: #fff;
+  border: 2px solid var(--dc-brown);
+  padding: 18px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  position: sticky; bottom: 0;
+  margin-top: 24px;
+  z-index: 5;
+}
+.diaco-design .submit-bar .recap {
+  font-family: var(--font-sans); font-size: 13px; color: var(--fg-2); line-height: 1.5;
+}
+.diaco-design .submit-bar .recap strong { color: var(--fg-1); font-weight: 600; }
+.diaco-design .submit-bar .actions { display: flex; gap: 10px; flex-shrink: 0; }
+@media (max-width: 700px) {
+  .diaco-design .submit-bar { flex-direction: column; align-items: stretch; }
+  .diaco-design .submit-bar .actions { justify-content: stretch; }
+  .diaco-design .submit-bar .actions .btn { flex: 1; }
+}
+
+/* The order-head__eyebrow on /orders/new uses a multi-span layout —
+   reuse the breadcrumb appearance but allow gap to be smaller. */
+.diaco-design .order-head__eyebrow {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+/* Phase-2B shell content inside collapsible section bodies */
+.diaco-design .osec-shell {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #FBF7F1;
+  border: 1px solid var(--dc-gray-300);
+  border-left: 3px solid var(--dc-brown);
+  padding: 16px 18px;
+  font-family: var(--font-sans);
+}
+.diaco-design .osec-shell__icon {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--dc-gray-100);
+  border: 1px solid var(--dc-gray-300);
+  color: var(--dc-brown);
+}
+.diaco-design .osec-shell__copy {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--dc-brown);
+  line-height: 1.6;
+}
+
+/* Cancel-confirm modal */
+.diaco-design .confirm-dialog {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15, 15, 15, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.diaco-design .confirm-dialog__panel {
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  padding: 26px 28px;
+  max-width: 420px; width: 100%;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+.diaco-design .confirm-dialog__title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--fg-1);
+  margin: 0 0 8px;
+  letter-spacing: -0.005em;
+}
+.diaco-design .confirm-dialog__body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.6;
+  margin: 0 0 18px;
+}
+.diaco-design .confirm-dialog__actions {
+  display: flex; justify-content: flex-end; gap: 10px;
+}
+
+/* ============================================================
+   Step 6 — Submit + section-header warnings + post-submit banner
+   ============================================================ */
+
+/* Section-header warning icon. Sits in the right cluster between
+   osec__summary and osec__chev (column 4 of the 5-col grid). Always
+   rendered — visibility toggles via .osec__warn--hidden when there's
+   no warning, so the grid's 5 columns stay populated and titles
+   align row-to-row regardless of warning state. Tooltip lists the
+   specific missing fields via native title. Brand gold +
+   AlertTriangle matches .stone-row__warn in Sections 05/06. */
+.diaco-design .osec__warn {
+  display: inline-flex; align-items: center;
+  color: var(--dc-gold);
+  cursor: help;
+}
+.diaco-design .osec__warn--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Loader2 spin. Used by the Submit button while submitting. */
+@keyframes diaco-spin {
+  to { transform: rotate(360deg); }
+}
+.diaco-design .spin {
+  display: inline-block;
+  animation: diaco-spin 0.9s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+/* Inline submit error. Sits above the recap+actions row inside the
+   sticky submit-bar via flex-wrap + order:-1. Red-tinted but muted —
+   keeps the palette tight; the per-section warning icons already
+   carry the "fix something" signal. */
+.diaco-design .submit-bar { flex-wrap: wrap; }
+.diaco-design .submit-error {
+  order: -1;
+  flex-basis: 100%;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--dc-red);
+  background: #FBEEEE;
+  border: 1px solid #E8C4C3;
+  border-radius: 4px;
+  padding: 8px 12px;
+  line-height: 1.4;
+}
+
+/* Post-submit confirmation banner on /orders. Soft green register —
+   informational, not alarming. The CheckCircle icon carries the
+   "success" signal; the background is just light tint. */
+.diaco-design .submit-banner {
+  display: flex; align-items: center; gap: 14px;
+  background: #F0F8F0;
+  border: 1px solid #C8E0C8;
+  border-radius: 4px;
+  padding: 14px 16px;
+  margin: 18px 0;
+}
+.diaco-design .submit-banner__ico {
+  display: inline-flex; align-items: center;
+  color: #4A7B4A;
+  flex-shrink: 0;
+}
+.diaco-design .submit-banner__body {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 2px;
+  font-family: var(--font-sans);
+  color: var(--fg-1);
+}
+.diaco-design .submit-banner__body strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.diaco-design .submit-banner__sub {
+  font-size: 12px;
+  color: var(--fg-2);
+}
+.diaco-design .submit-banner__dismiss {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none;
+  width: 28px; height: 28px;
+  color: var(--fg-3);
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.diaco-design .submit-banner__dismiss:hover {
+  color: var(--fg-1);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ============================================================
+   Step 7 — Drafts tab + resume hydration + inline Discard confirm
+   ============================================================ */
+
+/* Drafts table wrapper. Action bar above (Delete button or confirm
+   strip), table below. */
+.diaco-design .drafts-wrap {
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.diaco-design .drafts-actions {
+  display: flex; align-items: center; min-height: 40px;
+}
+
+.diaco-design .drafts-confirm {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-sans); font-size: 13px; color: var(--fg-1);
+}
+.diaco-design .drafts-error {
+  font-size: 12px; color: var(--dc-red);
+  margin-left: 8px;
+}
+
+.diaco-design .drafts-table {
+  width: 100%; border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  font-family: var(--font-sans);
+}
+.diaco-design .drafts-table th,
+.diaco-design .drafts-table td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--dc-gray-200);
+  font-size: 13px;
+  color: var(--fg-1);
+}
+.diaco-design .drafts-table thead th {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--fg-3); background: var(--bg-subtle);
+}
+.diaco-design .drafts-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.diaco-design .drafts-table__row {
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.diaco-design .drafts-table__row:hover {
+  background: #FBF7F1;
+}
+.diaco-design .drafts-table__check {
+  width: 40px; padding-right: 0;
+  cursor: default;
+}
+.diaco-design .drafts-table__cell { cursor: pointer; }
+.diaco-design .drafts-table__right { text-align: right; }
+
+/* btn--sm — compact variant used by the inline confirm strips on
+   the drafts list. */
+.diaco-design .btn--sm {
+  padding: 6px 12px; font-size: 12px;
+}
+
+/* Step 7 draft error pages (not_found, wrong_status). Inline server-
+   rendered. Centered card with a single primary CTA. */
+.diaco-design .draft-error {
+  background: #fff;
+  border: 1px solid var(--dc-gray-300);
+  padding: 48px 32px;
+  text-align: center;
+  margin: 48px auto;
+  max-width: 480px;
+}
+.diaco-design .draft-error h1 {
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 600;
+  color: var(--fg-1);
+  margin: 0 0 12px;
+}
+.diaco-design .draft-error p {
+  font-family: var(--font-sans);
+  font-size: 14px; color: var(--fg-2);
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+/* Inline Discard confirm strip in the submit-bar footer. Replaces
+   the three-button row (Discard | Save draft | Submit) when the
+   customer clicks Discard. Same .actions positioning so the layout
+   doesn't jump. */
+.diaco-design .discard-confirm {
+  font-family: var(--font-sans);
+}
+.diaco-design .discard-confirm__prompt {
+  font-size: 13px; color: var(--fg-1); font-weight: 500;
+  margin-right: 4px;
+}
+
+/* ============================================================
+   TOP NAV — user/logout cluster (Phase 2C Sub-session 2)
+   Right side of nav: + New order CTA, then user email + Logout.
+   ============================================================ */
+.diaco-design .top-nav__right {
+  display: flex; align-items: center; gap: 20px;
+}
+.diaco-design .top-nav__user {
+  display: flex; align-items: center; gap: 14px;
+  padding-left: 20px;
+  border-left: 1px solid var(--dc-gray-300);
+}
+.diaco-design .top-nav__user-email {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--fg-3);
+  letter-spacing: 0.2px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.diaco-design .top-nav__logout-form {
+  /* The Logout is rendered as a form-submit (POST) rather than a Link to
+     avoid Next.js Link prefetch triggering the logout side-effect. The
+     wrapper form needs display:inline so the button sits inline with the
+     user email next to it (default <form> is block). */
+  display: inline;
+  margin: 0;
+  padding: 0;
+}
+.diaco-design .top-nav__logout {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 500;
+  color: var(--fg-2);
+  text-decoration: none;
+  padding: 6px 2px;
+  letter-spacing: 0.2px;
+  transition: color 160ms ease;
+  /* Button reset — these are no-ops when this class is on an <a>; necessary
+     when on a <button> so it visually matches the link form. */
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.diaco-design .top-nav__logout:hover { color: var(--dc-brown); }
+
+/* ============================================================
+   AUTH PAGES — /login, /forgot-password, /reset-password
+   Centered card on the page background. Playfair heading, Plex body,
+   brown primary action. Matches §11 visual system.
+   ============================================================ */
+.diaco-design.auth-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px 20px;
+}
+.diaco-design .auth-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-surface);
+  border: var(--border-standard);
+  border-radius: var(--radius-md);
+  padding: 48px 40px;
+}
+.diaco-design .auth-heading {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0 0 8px;
+  letter-spacing: -0.2px;
+}
+.diaco-design .auth-subheading {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-2);
+  margin: 0 0 28px;
+  line-height: 1.6;
+}
+.diaco-design .auth-banner {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+}
+.diaco-design .auth-banner--success {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+.diaco-design .auth-banner--error {
+  background: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FCA5A5;
+}
+.diaco-design .auth-form {
+  display: flex; flex-direction: column; gap: 18px;
+}
+.diaco-design .auth-field {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.diaco-design .auth-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-2);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.diaco-design .auth-input {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-1);
+  background: var(--bg-surface);
+  border: var(--border-standard);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  transition: border-color 160ms ease;
+}
+.diaco-design .auth-input:focus {
+  outline: none;
+  border-color: var(--dc-brown);
+}
+.diaco-design .auth-input[aria-invalid="true"] {
+  border-color: var(--dc-red);
+}
+.diaco-design .auth-field-error {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--dc-red);
+}
+.diaco-design .auth-form-error {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: #991B1B;
+  background: #FEE2E2;
+  border: 1px solid #FCA5A5;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.diaco-design .auth-submit {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: var(--dc-brown);
+  border: 1px solid var(--dc-brown);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: background 160ms ease, opacity 160ms ease;
+  margin-top: 4px;
+}
+.diaco-design .auth-submit:hover:not(:disabled) {
+  background: #6F5A40;
+  border-color: #6F5A40;
+}
+.diaco-design .auth-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.diaco-design .auth-secondary {
+  margin-top: 16px;
+  font-size: 13px;
+  text-align: center;
+}
+.diaco-design .auth-link {
+  color: var(--dc-brown);
+  text-decoration: none;
+  font-weight: 500;
+}
+.diaco-design .auth-link:hover {
+  text-decoration: underline;
+}
+.diaco-design .auth-confirmation {
+  display: flex; flex-direction: column; gap: 20px;
+}
+.diaco-design .auth-confirmation-body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-2);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Password show/hide toggle (used by /login + /reset-password).
+   Eye icon overlays the right edge of the input. */
+.diaco-design .auth-password-wrap {
+  position: relative;
+  display: block;
+}
+.diaco-design .auth-password-wrap .auth-input {
+  width: 100%;
+  padding-right: 40px;
+}
+.diaco-design .auth-password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--fg-3);
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  transition: color 160ms ease;
+}
+.diaco-design .auth-password-toggle:hover { color: var(--fg-2); }
+.diaco-design .auth-password-toggle:focus-visible {
+  outline: 2px solid var(--dc-brown);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * /team — Phase 2C Sub-session 5
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* ---- Page-level ---- */
+.diaco-design .team-header { margin-bottom: 32px; }
+.diaco-design .team-page-title {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0 0 6px;
+}
+.diaco-design .team-page-sub {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-2);
+  margin: 0;
+}
+.diaco-design .team-page-sub__count {
+  font-family: var(--font-mono);
+  color: var(--fg-1);
+  font-weight: 500;
+}
+
+/* ---- Sections ---- */
+.diaco-design .team-section {
+  background: var(--bg-surface);
+  border: var(--border-standard);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.diaco-design .team-section__title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--fg-1);
+  margin: 0 0 16px;
+}
+.diaco-design .team-subsection__title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-2);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin: 20px 0 12px;
+}
+.diaco-design .team-subsection__title--deactivated {
+  color: var(--fg-3, #999);
+}
+
+/* ---- Empty states ---- */
+.diaco-design .team-empty {
+  padding: 40px 24px;
+  text-align: center;
+  font-family: var(--font-sans);
+  color: var(--fg-2);
+}
+.diaco-design .team-empty p { margin: 0 0 6px; font-size: 14px; }
+.diaco-design .team-empty__hint { font-size: 13px; color: var(--fg-3, #999); }
+.diaco-design .team-empty__inline {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--fg-2);
+  padding: 12px 0;
+  margin: 0;
+}
+
+.diaco-design .team-super-admin-empty {
+  background: var(--bg-surface);
+  border: var(--border-standard);
+  border-radius: var(--radius-md);
+  padding: 40px 32px;
+  text-align: center;
+}
+.diaco-design .team-super-admin-empty p {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-2);
+  margin: 0 0 20px;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.diaco-design .team-super-admin-empty__cta {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--dc-brown);
+  text-decoration: none;
+  padding: 8px 16px;
+  border: 1px solid var(--dc-brown);
+  border-radius: var(--radius-sm);
+  transition: background 160ms ease, color 160ms ease;
+}
+.diaco-design .team-super-admin-empty__cta:hover {
+  background: var(--dc-brown);
+  color: #fff;
+}
+
+/* ---- Banners ---- */
+.diaco-design .team-banner {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+.diaco-design .team-banner--success {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+.diaco-design .team-banner--error {
+  background: #FEE2E2;
+  color: #991B1B;
+  border: 1px solid #FCA5A5;
+}
+
+/* ---- Invite form ---- */
+.diaco-design .team-invite-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.diaco-design .team-invite-form__row {
+  display: flex;
+  gap: 16px;
+}
+.diaco-design .team-invite-form__row--split > * { flex: 1; }
+.diaco-design .team-invite-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.diaco-design .team-invite-form__label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-2);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.diaco-design .team-invite-form__input {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-1);
+  background: var(--bg-surface);
+  border: var(--border-standard);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  transition: border-color 160ms ease;
+}
+.diaco-design .team-invite-form__input:focus {
+  outline: none;
+  border-color: var(--dc-brown);
+}
+.diaco-design .team-invite-form__fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.diaco-design .team-invite-form__radios {
+  display: flex;
+  gap: 24px;
+}
+.diaco-design .team-invite-form__radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--fg-1);
+  cursor: pointer;
+}
+.diaco-design .team-invite-form__flags {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 24px;
+}
+.diaco-design .team-invite-form__flag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--fg-1);
+  cursor: pointer;
+}
+.diaco-design .team-invite-form__submit {
+  align-self: flex-start;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: #fff;
+  background: var(--dc-brown);
+  border: 1px solid var(--dc-brown);
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: opacity 160ms ease;
+}
+.diaco-design .team-invite-form__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- Lists ---- */
+.diaco-design .team-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- Pending invite row ---- */
+.diaco-design .team-pending-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 16px;
+  background: #FAFAFA;
+  border: var(--border-standard);
+  border-radius: var(--radius-sm);
+}
+.diaco-design .team-pending-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.diaco-design .team-pending-row__name {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-1);
+}
+.diaco-design .team-pending-row__email {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+.diaco-design .team-pending-row__badges {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.diaco-design .team-pending-row__expiry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+.diaco-design .team-pending-row__expiry-text { font-family: var(--font-mono); }
+.diaco-design .team-pending-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ---- Team member row ---- */
+.diaco-design .team-member-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: start;
+  gap: 24px;
+  padding: 16px;
+  background: #FAFAFA;
+  border: var(--border-standard);
+  border-radius: var(--radius-sm);
+}
+.diaco-design .team-member-row--deactivated { opacity: 0.6; }
+.diaco-design .team-member-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.diaco-design .team-member-row__name {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-1);
+}
+.diaco-design .team-member-row__self {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--fg-2);
+  font-size: 12px;
+}
+.diaco-design .team-member-row__email {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+.diaco-design .team-member-row__badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.diaco-design .team-member-row__flags {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 6px 20px;
+}
+.diaco-design .team-member-row__actions {
+  align-self: flex-start;
+}
+
+/* ---- Badges ---- */
+.diaco-design .team-role-badge {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+.diaco-design .team-role-badge--sales_rep {
+  background: #EFF6FF;
+  color: #1E40AF;
+}
+.diaco-design .team-role-badge--customer_admin {
+  background: #F3E8FF;
+  color: #6B21A8;
+}
+.diaco-design .team-status-badge {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+.diaco-design .team-status-badge--deactivated {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+/* ---- Flag toggle ---- */
+.diaco-design .team-flag-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--fg-1);
+  cursor: pointer;
+}
+.diaco-design .team-flag-toggle--disabled {
+  color: var(--fg-3, #999);
+  cursor: not-allowed;
+}
+.diaco-design .team-flag-toggle__label { line-height: 1.4; }
+.diaco-design .team-flag-toggle__error {
+  font-size: 11px;
+  color: var(--dc-red);
+  margin-left: 8px;
+}
+
+/* ---- Buttons ---- */
+.diaco-design .team-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.diaco-design .team-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.diaco-design .team-btn--secondary {
+  color: var(--fg-1);
+  border: 1px solid var(--border-color, #E5E5E5);
+}
+.diaco-design .team-btn--secondary:hover:not(:disabled) {
+  border-color: var(--dc-brown);
+  color: var(--dc-brown);
+}
+.diaco-design .team-btn--danger {
+  color: var(--dc-red);
+  border: 1px solid var(--dc-red);
+}
+.diaco-design .team-btn--danger:hover:not(:disabled) {
+  background: var(--dc-red);
+  color: #fff;
+}
+.diaco-design .team-btn--reactivate {
+  color: var(--dc-brown);
+  border: 1px solid var(--dc-brown);
+}
+.diaco-design .team-btn--reactivate:hover:not(:disabled) {
+  background: var(--dc-brown);
+  color: #fff;
+}
+
+/* ---- Inline feedback ---- */
+.diaco-design .team-inline-error {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--dc-red);
+}
+.diaco-design .team-inline-flash {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: #065F46;
+}
+.diaco-design .team-warn-icon {
+  color: var(--dc-gold, #D4A94A);
+}
+.diaco-design .team-deactivate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}

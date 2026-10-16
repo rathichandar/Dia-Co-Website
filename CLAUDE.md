@@ -1,0 +1,3 @@
+@AGENTS.md
+@PROJECT_CONTEXT.md
+@SCHEMA.md
