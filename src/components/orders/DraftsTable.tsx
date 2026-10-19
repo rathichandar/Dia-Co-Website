@@ -16,25 +16,45 @@
 //
 // When the items array is empty (either no drafts or all just
 // deleted), renders the empty state instead.
+//
+// ERP integration Step 3: orders Dia-Co DECLINED come first, each with
+// the reason and an "Edit and send again" button (a POST — the server
+// action asks the ERP before it reopens anything). They are not drafts
+// yet, so they cannot be selected or deleted here.
 // ============================================================
 
-import { useState, useTransition } from "react"
+import { Fragment, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { discardDrafts } from "@/lib/orders/discardDrafts"
+import { reopenDeclinedOrderAction } from "@/lib/orders/reopenDeclinedOrder"
 import { relativeTimeLong } from "@/lib/relativeTime"
 import type { DraftListItem } from "@/lib/orders/fetchDrafts"
+
+export interface DeclinedDraftItem {
+  id: string
+  productTypeName: string | null
+  endCustomerName: string | null
+  clientPo: string | null
+  finishPoint: string | null
+  declinedAt: Date | null
+  reason: string
+}
+
+type RowLike = Pick<DraftListItem, "productTypeName" | "endCustomerName" | "clientPo" | "finishPoint">
+
+const LONG_DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" })
 
 // Display-cased product names. Master rows are title-cased already
 // ("Ring", "Pendant", etc.), so we pass through. Fallback "—" when
 // no product type picked yet.
-function productLabel(item: DraftListItem): string {
+function productLabel(item: RowLike): string {
   return item.productTypeName ?? "—"
 }
 
 // Customer reference column: end customer name OR PO, whichever's
 // filled. No parenthetical label per spec — plain value, em-dash
 // when neither filled.
-function customerReference(item: DraftListItem): string {
+function customerReference(item: RowLike): string {
   const name = item.endCustomerName?.trim()
   if (name) return name
   const po = item.clientPo?.trim()
@@ -50,19 +70,25 @@ const FINISH_POINT_LABELS: Record<string, string> = {
   polished_mounting: "Polished mounting",
   finished_piece: "Finished piece",
 }
-function finishLabel(item: DraftListItem): string {
+function finishLabel(item: RowLike): string {
   if (!item.finishPoint) return "—"
   return FINISH_POINT_LABELS[item.finishPoint] ?? item.finishPoint
 }
 
-export function DraftsTable({ items }: { items: DraftListItem[] }) {
+export function DraftsTable({
+  items,
+  declined = [],
+}: {
+  items: DraftListItem[]
+  declined?: DeclinedDraftItem[]
+}) {
   const router = useRouter()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [confirming, setConfirming] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  if (items.length === 0) {
+  if (items.length === 0 && declined.length === 0) {
     return (
       <div className="orders-empty">
         <h3>No drafts yet.</h3>
@@ -74,7 +100,7 @@ export function DraftsTable({ items }: { items: DraftListItem[] }) {
     )
   }
 
-  const allSelected = selectedIds.size === items.length
+  const allSelected = items.length > 0 && selectedIds.size === items.length
   const someSelected = selectedIds.size > 0 && !allSelected
   const selectedCount = selectedIds.size
 
@@ -116,7 +142,9 @@ export function DraftsTable({ items }: { items: DraftListItem[] }) {
   return (
     <div className="drafts-wrap">
       {/* Action bar — either the Delete button or the inline confirm
-         strip. State flips between them; layout stays stable. */}
+         strip. State flips between them; layout stays stable. Hidden when
+         the only rows are declined orders (those are not deletable here). */}
+      {items.length > 0 && (
       <div className="drafts-actions">
         {confirming ? (
           <div className="drafts-confirm" role="alert">
@@ -152,20 +180,23 @@ export function DraftsTable({ items }: { items: DraftListItem[] }) {
           </button>
         )}
       </div>
+      )}
 
       <table className="drafts-table">
         <thead>
           <tr>
             <th className="drafts-table__check">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={(el) => {
-                  if (el) el.indeterminate = someSelected
-                }}
-                onChange={toggleAll}
-                aria-label="Select all drafts"
-              />
+              {items.length > 0 && (
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected
+                  }}
+                  onChange={toggleAll}
+                  aria-label="Select all drafts"
+                />
+              )}
             </th>
             <th>Product</th>
             <th>Customer reference</th>
@@ -174,6 +205,42 @@ export function DraftsTable({ items }: { items: DraftListItem[] }) {
           </tr>
         </thead>
         <tbody>
+          {declined.map((d) => (
+            <Fragment key={d.id}>
+              <tr className="drafts-table__row drafts-table__row--declined">
+                <td className="drafts-table__check" />
+                <td>
+                  {productLabel(d)}{" "}
+                  <span className="badge badge--late drafts-declined__badge">
+                    <span className="dot" />
+                    Declined
+                  </span>
+                </td>
+                <td>{customerReference(d)}</td>
+                <td>{finishLabel(d)}</td>
+                <td className="drafts-table__right">
+                  {d.declinedAt ? relativeTimeLong(d.declinedAt) : "—"}
+                </td>
+              </tr>
+              <tr className="drafts-table__reason-row">
+                <td className="drafts-table__check" />
+                <td colSpan={4}>
+                  <div className="drafts-declined">
+                    <div className="drafts-declined__head">
+                      Dia-Co declined this{d.declinedAt ? ` on ${LONG_DATE.format(d.declinedAt)}` : ""}:
+                    </div>
+                    <div className="drafts-declined__reason">“{d.reason}”</div>
+                    <form action={reopenDeclinedOrderAction}>
+                      <input type="hidden" name="orderId" value={d.id} />
+                      <button type="submit" className="btn btn--sm">
+                        Edit and send again
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            </Fragment>
+          ))}
           {items.map((item) => {
             const checked = selectedIds.has(item.id)
             const resumeHref = `/orders/new?orderId=${encodeURIComponent(item.id)}`

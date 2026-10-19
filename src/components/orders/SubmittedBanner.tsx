@@ -39,9 +39,17 @@ export function SubmittedBanner({
 
   if (dismissed) return null
 
-  const headline = identifier
-    ? `Order ${identifier} submitted for free quote`
-    : "Order submitted for free quote"
+  // ERP integration Step 3: "sent" = the order went to Dia-Co, where an AM checks it; it gets its number
+  // when they create it.
+  const sentToDiaco = identifier === "sent"
+  const headline = sentToDiaco
+    ? "Sent to Dia-Co"
+    : identifier
+      ? `Order ${identifier} submitted for free quote`
+      : "Order submitted for free quote"
+  const sub = sentToDiaco
+    ? "Your account manager will check it and confirm. The order number appears here once it's created."
+    : "Your AM will send a quote within 18-48 hours."
 
   const handleDismiss = () => {
     setDismissed(true)
@@ -62,9 +70,7 @@ export function SubmittedBanner({
       </span>
       <div className="submit-banner__body">
         <strong>{headline}</strong>
-        <span className="submit-banner__sub">
-          Your AM will send a quote within 18-48 hours.
-        </span>
+        <span className="submit-banner__sub">{sub}</span>
       </div>
       <button
         type="button"

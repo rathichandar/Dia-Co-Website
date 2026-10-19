@@ -12,7 +12,7 @@ import { randomUUID } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
 import { HEADERS, signBody } from './signing'
 
-export type GatewayOp = 'whoami' | 'link.confirm' | 'orders.list' | 'order.get'
+export type GatewayOp = 'whoami' | 'link.confirm' | 'orders.list' | 'order.get' | 'order.submit' | 'submissions.list'
 
 export type GatewayResult<T> =
   | { ok: true; data: T }
@@ -28,6 +28,15 @@ export type WhoAmI = {
 
 export function erpConfigured(): boolean {
   return Boolean(process.env.ERP_GATEWAY_URL && process.env.PORTAL_GATEWAY_SECRET)
+}
+
+// The ERP's refusal as the customer reads it: its own sentence, without the 'PORTAL_<KIND>: ' code and with
+// its ' -- ' as a dash (contract §5: the Portal shows the server's sentence as written).
+export function erpSentence(r: { message: string }): string {
+  const m = /^PORTAL_[A-Z_]+:\s*([\s\S]*)$/.exec(r.message.trim())
+  const body = (m ? m[1] : r.message).replace(/\s+--\s+/g, ' — ').trim()
+  if (!body) return 'Dia-Co could not answer just now. Try again shortly.'
+  return body.charAt(0).toUpperCase() + body.slice(1) + (/[.!?]$/.test(body) ? '' : '.')
 }
 
 export async function callGateway<T = Record<string, unknown>>(

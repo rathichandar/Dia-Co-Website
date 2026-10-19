@@ -201,6 +201,10 @@
 .diaco-design .badge--on_track      { background: #DCFCE7; color: #166534; }
 .diaco-design .badge--on_track .dot { background: #16A34A; }
 
+/* Sent to Dia-Co, waiting for an AM (ERP integration Step 3). The brand brown: ours to answer, not late. */
+.diaco-design .badge--received      { background: #EFE4D2; color: #5C4A30; }
+.diaco-design .badge--received .dot { background: #8B7355; }
+
 .diaco-design .badge .dot { width: 5px; height: 5px; border-radius: 50%; }
 
 /* ============================================================
@@ -270,6 +274,9 @@
   transition: border-color 180ms ease, transform 180ms ease;
 }
 .diaco-design .order-card:hover { border-color: var(--dc-brown); }
+/* A received order has no order page yet (no number): the same card, not a link. */
+.diaco-design .order-card--static { cursor: default; }
+.diaco-design .order-card--static:hover { border-color: var(--dc-gray-300); }
 .diaco-design .order-card__img {
   aspect-ratio: 4/3;
   background: #EFEAE2 center/cover no-repeat;
@@ -2063,6 +2070,26 @@
   cursor: default;
 }
 .diaco-design .drafts-table__cell { cursor: pointer; }
+
+/* ERP integration Step 3 — an order Dia-Co declined: its row, then the reason and the way back. */
+.diaco-design .drafts-table__row--declined { cursor: default; }
+.diaco-design .drafts-table__row--declined td { border-bottom: none; padding-bottom: 6px; }
+.diaco-design .drafts-table__row--declined:hover,
+.diaco-design .drafts-table__reason-row:hover { background: transparent; }
+.diaco-design .drafts-table__reason-row td { padding-top: 0; }
+.diaco-design .drafts-declined__badge { margin-left: 8px; vertical-align: 1px; }
+.diaco-design .drafts-declined {
+  background: #FBF7F1; border: 1px solid #E8DCC8; border-radius: 2px;
+  padding: 10px 12px; font-size: 13px; line-height: 1.5;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+}
+.diaco-design .drafts-declined__head { font-weight: 600; }
+.diaco-design .drafts-declined__reason { color: var(--fg-1); white-space: pre-line; }
+.diaco-design .order-declined-banner {
+  background: #FBF7F1; border: 1px solid #E8DCC8; border-radius: 4px;
+  padding: 12px 16px; margin: 18px 0; font-family: var(--font-sans); font-size: 13px; line-height: 1.5;
+}
+.diaco-design .order-declined-banner strong { font-size: 14px; display: block; margin-bottom: 2px; }
 .diaco-design .drafts-table__right { text-align: right; }
 
 /* btn--sm — compact variant used by the inline confirm strips on

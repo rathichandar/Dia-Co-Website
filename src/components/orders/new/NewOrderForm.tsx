@@ -1876,7 +1876,8 @@ export function NewOrderForm({
 
     const result = await submitOrder({ orderId: draftIdRef.current })
     if (result.ok) {
-      const param = result.identifier ?? "1"
+      // ERP integration Step 3: sent to Dia-Co -> "sent" (no number until an AM creates it).
+      const param = result.sentToErp ? "sent" : (result.identifier ?? "1")
       router.push(`/orders?submitted=${encodeURIComponent(param)}`)
       return // nav unmounts this component; no isSubmitting reset
     }
@@ -2003,6 +2004,23 @@ export function NewOrderForm({
                 inline confirm strip. Header keeps Save draft only. */}
           </div>
         </header>
+
+        {/* ERP integration Step 3: Dia-Co declined this order; the customer reopened it to change and
+            send it again. The reason, exactly as the AM wrote it. */}
+        {initialDraft?.declined && (
+          <div className="order-declined-banner" role="status">
+            <strong>
+              Dia-Co declined this order
+              {initialDraft.declined.at
+                ? ` on ${new Date(initialDraft.declined.at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+                : ""}
+            </strong>
+            <span>“{initialDraft.declined.reason}”</span>
+            <span style={{ display: "block", marginTop: 4, color: "var(--fg-2)" }}>
+              Change what&apos;s needed, then submit it again.
+            </span>
+          </div>
+        )}
 
         {/* Free-quote banner */}
         <div className="quote-banner">

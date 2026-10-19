@@ -1,11 +1,14 @@
 # Diaco Portal — Project Context
 
-**Last updated:** October 15, 2026 (Sub-session 5 found built; direction change to "ERP is the system of record" recorded)
+**Last updated:** October 19, 2026 (ERP integration Step 3, order intake, built; Steps 1–2 on ERP staging)
 **Maintained by:** Claude, at Arpit's direction. Replaced after each work session.
 **Status:**
 - **Done:** Phase 2C Sub-sessions 1-4 are live in prod (https://diaco-portal.vercel.app). Sub-session 5 (Customer Admin `/team` + invitations) is built in code, and its migrations are applied to the portal database (verified 2026-10-15: `/team` loads members and pending invitations). Whether SS5 is deployed to prod is unverified.
 - **Repo:** this working copy is a fresh repo (`rathichandar/diaco-portal`, one import commit). The earlier history, including `9e029ba`, lives in the original repo.
-- **Next:** finish SS5 (end-to-end invite test), then the ERP integration in `ERP_INTEGRATION_CONTRACT.md`.
+- **ERP integration** (`ERP_INTEGRATION_CONTRACT.md` §0 has the detail):
+  - **Steps 1–2 work on ERP staging:** identity links and invites, and a linked customer's orders read from the ERP.
+  - **Step 3 works end to end on staging (2026-10-19).** Orders are sent to the ERP, where AMs see a shared Portal orders panel and Create or Decline each one. A browser run verified both paths, and AB-1310 is the test order.
+- **Next:** Step 1b (Customer Master "Portal access") or Step 4 (design review and requests).
 
 > **⚠ DIRECTION CHANGE: read before planning anything.** The "internal software" this doc and
 > `EXISTING_SYSTEMS_REFERENCE.md` describe (locally hosted, old dev team) was **replaced on
@@ -338,7 +341,10 @@ Typography: Playfair Display (display), IBM Plex Sans (body), IBM Plex Mono (ide
 
 **Schema:** 21 tables (16 operational + 5 master). Full details in `SCHEMA.md` (in repo).
 
-**Migration files (53 total, through Phase 2C Sub-session 5).** SS5's files (47–53) are confirmed applied by `/team` working against the portal DB on 2026-10-15; earlier files were applied per their sessions.
+**Migration files (55 total, through ERP integration Step 3).** SS5's files (47–53) are confirmed applied by `/team` working against the portal DB on 2026-10-15; earlier files were applied per their sessions.
+
+- 54: ERP Step 1, `20261015000001_erp_invites_and_customer_shells.sql`. Applied 2026-10-16.
+- 55: ERP Step 3, `20261019000001_erp_order_intake.sql`: `orders.erp_*` columns, `record_erp_submission`, `reopen_declined_order`. Applied 2026-10-19.
 
 - 47-53: Sub-session 5. `20260719000001`–`07`:
   - `pending_invites` table (role + capability-flag snapshot, 7-day `expires_at`, status pending/accepted/revoked/expired)
@@ -539,10 +545,17 @@ Customer Admin then invites Sales Reps within their company in either case.
 6. **Sub-session 6: Super Admin `/admin` + registration approval + Dia-Co staff creation.** DROPPED 2026-10-15. Per the ERP plan, the registration queue and staff accounts live in the ERP, and invites of a customer's first Customer Admin start from the ERP's Customer Master (`ERP_INTEGRATION_CONTRACT.md` §9).
 
 7. **The ERP integration,** per `ERP_INTEGRATION_CONTRACT.md` §12.
-   - **Step 1a (identity links) is BUILT** in both repos (2026-10-15): not applied, not deployed, not committed.
-   - **What it has:** ERP SQL + two Edge Functions + `portal.test.js`; on the Portal, a migration, `src/lib/erp/*`, `/api/erp/invite` and `/api/erp/link-revoke`, and `finalizeInvite` → `link.confirm`.
+   - **Step 1a (identity links)** works end to end on ERP staging (2026-10-16).
+     - ERP: SQL, two Edge Functions and `portal.test.js`.
+     - Portal: a migration, `src/lib/erp/*`, `/api/erp/invite` and `/api/erp/link-revoke`, and `finalizeInvite` → `link.confirm`.
+   - **Step 2 (read path)** is on staging: `/orders` and `/orders/[orderId]` read from the ERP for linked logins.
+   - **Step 3 (order intake) works end to end on ERP staging (2026-10-19).**
+     - **Submit:** `submitOrder` sends the order (`order.submit`), and the Portal's copy becomes `submitted`.
+     - **Active tab:** a "Received" card until an AM creates the order; then the ERP order, keeping the customer's own label.
+     - **Drafts tab:** a declined order comes back with the reason, and "Edit and send again".
+     - **Without the ERP configured,** Submit works as before.
    - **Status and the run-it-end-to-end steps** are in the contract's §0.
-   - **Next:** Step 1b, the ERP Customer Master "Portal access" screen, mockup first. Then Step 2, the read path.
+   - **Next:** Step 1b, the ERP Customer Master "Portal access" screen (mockup first), and Step 4, design review and requests.
 
 **Heritage Fine Jewelers test setup:** Arpit will provide a dummy personal email. The existing hardcoded customer record gets promoted to a real account tied to that dummy email. Used as a live test account throughout Phase 2C+.
 

@@ -69,6 +69,9 @@ export interface InitialDraft {
   expandedCenterStoneIndex: number | null
   expandedAccentStoneIndex: number | null
   highestSectionTouched: number
+  // ERP integration Step 3: Dia-Co declined this order and the customer reopened it to change and send
+  // again. The form shows the reason at the top; sending again clears it (record_erp_submission).
+  declined: { reason: string; at: string | null } | null
 }
 
 export type DraftResumeResult =
@@ -100,7 +103,7 @@ export async function fetchDraftForResume(
       shipping_method, ship_to_recipient_name, ship_to_address_line1,
       ship_to_address_line2, ship_to_city, ship_to_state,
       ship_to_postal_code, ship_to_country, ship_to_phone,
-      has_center_stones, has_accent_stones,
+      has_center_stones, has_accent_stones, erp_decline_reason, erp_declined_at,
       product_type:product_types!product_type_id (short_code)
       `,
     )
@@ -229,6 +232,9 @@ export async function fetchDraftForResume(
       expandedCenterStoneIndex: centerStones.length > 0 ? 0 : null,
       expandedAccentStoneIndex: accentStones.length > 0 ? 0 : null,
       highestSectionTouched: inferHighestSectionTouched(formFields),
+      declined: order.erp_decline_reason
+        ? { reason: order.erp_decline_reason as string, at: (order.erp_declined_at as string | null) ?? null }
+        : null,
     },
   }
 }

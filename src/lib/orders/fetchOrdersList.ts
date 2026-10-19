@@ -49,6 +49,7 @@ export interface OrderListResult {
 }
 
 const ACTIVE_STATUSES = [
+  'submitted', // ERP integration Step 3: sent to Dia-Co, not yet answered (here only when the ERP is not)
   'designing',
   'approved',
   'in_production',
@@ -93,6 +94,8 @@ function subStatusTextFor(status: string, subStatus: string | null): string {
     }
   }
   switch (status) {
+    case 'submitted':
+      return 'Dia-Co is checking your order'
     case 'approved':
       return 'Queued for production'
     case 'in_production':

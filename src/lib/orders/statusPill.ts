@@ -18,6 +18,7 @@ export type StatusPillKind =
   | 'needs_review'
   | 'redesigning'
   | 'on_track'
+  | 'received' // sent to Dia-Co, waiting for an AM (ERP integration Step 3)
 
 export interface StatusPill {
   kind: StatusPillKind
@@ -48,6 +49,9 @@ export function computeStatusPill(
   expectedShipDate: Date | null,
   today: Date = new Date(),
 ): StatusPill | null {
+  if (status === 'submitted') {
+    return { kind: 'received', label: 'Received' }
+  }
   if (status === 'on_hold') {
     return { kind: 'on_hold', label: 'On hold' }
   }

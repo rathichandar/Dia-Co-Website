@@ -16,8 +16,9 @@ import {
   type StatusPill,
 } from '@/lib/orders/fetchOrdersList'
 import { fetchDrafts, fetchDraftsCount } from '@/lib/orders/fetchDrafts'
+import { loadSubmissionState } from '@/lib/erp/erpSubmissions'
 import { SubmittedBanner } from '@/components/orders/SubmittedBanner'
-import { DraftsTable } from '@/components/orders/DraftsTable'
+import { DraftsTable, type DeclinedDraftItem } from '@/components/orders/DraftsTable'
 // diaco-design.css is loaded by src/app/(authenticated)/layout.tsx
 
 export const metadata: Metadata = {
@@ -76,13 +77,28 @@ function StatusBadge({ pill }: { pill: StatusPill }) {
 // ─── Card ────────────────────────────────────────────────────
 
 function OrderCard({ item }: { item: OrderListItem }) {
-  const href = `/orders/${item.orderNumber}`
+  // ERP integration Step 3: an order sent to Dia-Co has no number (and so no page) until an AM creates it.
+  if (!item.orderNumber) {
+    return (
+      <div className="order-card order-card--static">
+        <OrderCardBody item={item} />
+      </div>
+    )
+  }
+  return (
+    <Link href={`/orders/${item.orderNumber}`} className="order-card">
+      <OrderCardBody item={item} />
+    </Link>
+  )
+}
+
+function OrderCardBody({ item }: { item: OrderListItem }) {
   const heroStyle = item.heroImageUrl
     ? { backgroundImage: `url(${item.heroImageUrl})` }
     : undefined
 
   return (
-    <Link href={href} className="order-card">
+    <>
       <div className="order-card__img" style={heroStyle}>
         {item.statusPill ? (
           <span className="b1">
@@ -97,7 +113,7 @@ function OrderCard({ item }: { item: OrderListItem }) {
       </div>
       <div className="order-card__body">
         <h3 className="order-card__title">
-          <span className="num">{item.orderNumber}</span>
+          <span className="num">{item.orderNumber || 'No. pending'}</span>
           {item.endCustomerName ?? item.productLabel ?? 'Untitled'}
         </h3>
         <div className="order-card__spec">{item.subStatusText}</div>
@@ -125,7 +141,7 @@ function OrderCard({ item }: { item: OrderListItem }) {
           </span>
         </div>
       </div>
-    </Link>
+    </>
   )
 }
 
@@ -149,7 +165,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   // Active/Cancelled queries return their own items + counts. Drafts
   // is a separate fetch with its own item shape. Drafts count loads
   // alongside so the tab badge is accurate on every tab.
-  const [activeCancelledResult, draftsResult, draftsCount] =
+  const [activeCancelledResult, draftsResult, ownDraftsCount, sent] =
     await Promise.all([
       tab !== 'drafts'
         ? fetchOrdersList({ tab, stageFilter })
@@ -158,8 +174,21 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
         ? fetchDrafts()
         : Promise.resolve({ items: [], count: 0 }),
       fetchDraftsCount(),
+      // ERP integration Step 3: orders Dia-Co declined come back to Drafts with the reason (cached: the
+      // Active tab's list asks for the same state in this request).
+      loadSubmissionState(),
     ])
   const { items, counts } = activeCancelledResult
+  const declined: DeclinedDraftItem[] = sent.declined.map((d) => ({
+    id: d.id,
+    productTypeName: d.productTypeName,
+    endCustomerName: d.endCustomerName,
+    clientPo: d.clientPo,
+    finishPoint: d.finishPoint,
+    declinedAt: d.declinedAt,
+    reason: d.reason,
+  }))
+  const draftsCount = ownDraftsCount + declined.length
 
   // Helper to build query-string links that preserve the other param.
   const tabHref = (t: OrdersTab) =>
@@ -271,7 +300,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
             is handled inside DraftsTable so the post-delete refresh
             transitions smoothly. */}
         {tab === 'drafts' && (
-          <DraftsTable items={draftsResult.items} />
+          <DraftsTable items={draftsResult.items} declined={declined} />
         )}
 
         {/* Active / Cancelled body: grid or empty state. */}

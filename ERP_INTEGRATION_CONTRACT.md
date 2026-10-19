@@ -20,22 +20,68 @@ changing anything on either side.
 
 ---
 
-## 0. Build status (updated 2026-10-16)
+## 0. Build status (updated 2026-10-19)
 
-**Step 2 (read path) is BUILT and not yet applied.**
+**Step 3 (order intake) WORKS END TO END on ERP staging (2026-10-19).**
+- **Applied and deployed:** the owner applied both SQL files, and `portal-gateway` was redeployed. Verified live: `order.submit` and `submissions.list` are known operations.
+- **The browser run:** a browser agent drove both apps:
+  - A Portal order became AB-1310 (receipt `converted`, its draft gone, the Portal card now `AB-1310 · Agent Create`).
+  - A second order was declined. It came back on the Portal's Drafts tab with the reason, and "Edit and send again" reopened it with the reason shown.
+  - No console or server errors.
+- **The bug it found first, in the ERP's own save:**
+  - `applyPlan` read *any* duplicate key as "already inserted". So a duplicate order number deleted the draft without creating the order.
+  - Fixed: only the primary key counts now, covered by `applyplan.test.js`.
+  - The first Portal order (receipt `086557cc…`, "Testing - connection") was left `received` with no draft. It still shows "No. pending" in the Portal, and no repair tool was built (owner, 2026-10-19).
+- **Not covered by the run:** the amber "couldn't hold" box on a fresh order (neither test order produced notes), a resend after a decline making a new receipt (proven in PGlite only), and the screens under a non-Admin AM.
+The design is the mockup approved on 2026-10-19 (claude.ai artifact `7HyXPqxiJsaCCtsME9X4vw`), with the owner's rulings D1, D3 and D5–D7 (§13).
+
+- **ERP SQL:** `db/2026-10-19-portal-order-intake.sql`.
+  - **The receipts table:** `portal_submissions`.
+  - **The mapping:** `_portal_intake_form`. Its lists are held equal to the app's own.
+  - **Gateway RPCs:** `portal_order_submit` and `portal_submissions_list`.
+  - **Staff RPCs:** `portal_submission_claim`, `_release` and `_decline`, under the new right `portal.intake` for Admin and AM.
+  - **The orders trigger:** `portal_orders_guard`.
+  - **Proven in PGlite:** 27 probes, 17 mutants caught.
+- **Gateway:** new operations `order.submit` and `submissions.list`.
+- **ERP app:**
+  - **New Order (part 54):**
+    - A **Portal orders** panel that every AM and Admin sees.
+    - Opening a Portal order shows a banner, the list of things the form couldn't hold, a locked customer and the ship-to.
+    - Create claims first, then runs the ordinary Create.
+    - Decline is done in the page, with a reason.
+  - **Elsewhere:** a count on the "+ New Order" tab (part 90), a "From the Portal" strip and Ship to on the order (part 60), and ship-to editing in Edit details (part 58).
+  - **The gate:** `portal.test.js` has 50 checks, and the 19 new ones are trip-proven against 12 breaks. The ERP gate is green at 882.
+- **Portal:**
+  - **Migration:** `20261019000001_erp_order_intake.sql` adds the `orders.erp_*` columns and the RPCs `record_erp_submission` and `reopen_declined_order`.
+  - **Code:**
+    - `src/lib/erp/orderSnapshot.ts` and `erpSubmissions.ts`, a new `submitOrder`, and `reopenDeclinedOrder`.
+    - The Received card and the Declined drafts.
+    - "Sent to Dia-Co" and the decline banner on the reopened form.
+  - **Without the ERP:** when it isn't configured, Submit works as before (`submit_order` → designing).
+
+**To switch Step 3 on, in this order:**
+1. **The Portal migration**, on the Portal project (`rnwslatnbcrasjambabt`). Apply it BEFORE running the new Portal code, because the resume form reads `erp_decline_reason`.
+2. **The ERP SQL plus V1–V4**, on ERP staging (`oncbcrpujxybprrqhglp`). V3 runs the whole path and rolls it back; V4 shows what one order maps to.
+3. **Redeploy `portal-gateway`.**
+4. **Run the new ERP build.** An older build would drop `data.portal` on Create, and the trigger would treat the result as an ordinary order.
+5. **Submit an order** from a linked Portal login. Then, in the ERP, open it from Portal orders and Create it; and decline a second one.
+
+**Known limits:**
+- **Reference images and the engraving logo** don't cross yet (§10).
+- **The ship-to is saved on the order** but not printed on the job card or the invoice yet.
+- **A Received card has no order page** until an AM creates the order.
+- **A customer can still edit the Portal's copy of a sent order** with a crafted request (the RLS allows `submitted`). The ERP keeps its own copy of what was sent, so only the Portal's display could drift.
+
+**Step 2 (read path) is applied on ERP staging.** This is inferred: a linked login read ERP-only orders through it on 2026-10-16, and the V-block results weren't recorded.
 
 - **ERP:** `db/2026-10-16-portal-orders-read.sql`. Proven in PGlite: 14 probes, 10 mutants caught.
 - **Gateway:** new operations `orders.list` and `order.get`.
-- **`portal.test.js`:** 31 checks, the new ones trip-proven against 12 breaks. The ERP gate is green at 863.
+- **`portal.test.js`:** 31 checks at the time, the new ones trip-proven against 12 breaks.
 - **Portal:**
   - `src/lib/erp/erpOrders.ts` feeds `/orders` and `/orders/[orderId]` for linked customers.
   - Any ERP failure falls back to the Portal's own tables, so nothing breaks if the Portal code goes out before the ERP side.
 
 **`portal-gateway` was redeployed 2026-10-16 with `orders.list` and `order.get`.** Verified live: an unlinked login is refused at `portal_whoami` before any order is read; an unknown operation → 400.
-
-**To switch it on:**
-1. Apply the SQL plus V1–V4 to ERP staging. V4 lists how every status combination in use translates.
-2. Sign in as a linked customer.
 
 **Step 1a (identity links) WORKS END TO END on ERP staging (2026-10-16).** Nothing is committed.
 
@@ -242,7 +288,8 @@ tables.
 | op | RPC | Payload → result | Notes |
 |---|---|---|---|
 | `whoami` | `portal_whoami` | `{}` → `{customer_code, customer_name, role}` | First call after sign-in |
-| `order.submit` | `portal_order_submit` | the Portal order snapshot (§6) → `{submission_id, received_at}` | Idempotent on the Portal order UUID |
+| `order.submit` | `portal_order_submit` | `{order: <snapshot, §6>}` → `{submission_id, status, received_at}` | Idempotent on the Portal order UUID while a receipt is open; after a decline, a resend makes a new receipt. Who sent it comes from the verified token |
+| `submissions.list` | `portal_submissions_list` | `{}` → `{submissions: [{submission_id, portal_order_id, status: received\|converted\|declined, received_at, decided_at, order_no, decline_reason}]}` | The latest receipt of each Portal order of the last 12 months: the open one, else the newest declined. Never who decided |
 | `orders.list` | `portal_orders_list` | `{filter: active\|cancelled\|all, after?, limit≤100}` → `[OrderSummary]` | Paged with a fixed order (ERP rule: never `.limit` past 1,000) |
 | `order.get` | `portal_order_get` | `{order_no \| submission_id}` → `OrderDetail` | |
 | `order.design` | `portal_order_design` | `{order_no}` → `{version, renders:[signed url], model_url, quote}` | Only while the order is at Client Review or later (§8) |
@@ -286,52 +333,82 @@ shipped_at` and the customer's own submission when there is one.
 
 ### 6.1 What happens
 
-1. **The Portal sends its snapshot.** The order, its metals, centre stones and accent stones, as the customer entered them. The key is the Portal order UUID.
-2. **`portal_order_submit` does two things in one transaction:**
-   - It inserts a `portal_submissions` row: the verbatim payload, `status 'received'`.
-   - It inserts a **draft order row**: `status='draft'`, `order_no` null, `draft_owner='portal'`, `customer_code` and `customer_name` set, `workflow='Draft'`, and `data = { _draft:true, _draftOwner:'portal', _form:<mapped form, §6.2>, _savedAt, customerName, style, createdBy:'Portal', workflow:'Draft', history:[], portal:{submission_id, portal_order_id, submitted_by, submitted_at} }`. This is the same shape the browser's own drafts have, so the app's realtime and poll already file it under `drafts`.
-   - This is the plan's "real row in a Portal Review state", using the existing draft machinery.
-3. **AMs see it in a new Portal Review panel** on New Order: drafts with `_draftOwner === 'portal'`, visible to AM and Admin.
-4. **The AM opens it.** The form is pre-filled from `_form`. The AM corrects anything needed and presses **Create** as today. Numbering, style number, roadmap, `logHistory("Order created")` and pricing then all follow the existing path.
-5. **Create carries `data.portal`** onto the new order and calls `portal_submission_converted(submission_id, order_id)`.
-6. **Instead of Discard, a portal draft offers Decline with a reason.** That is `portal_submission_decline`, and the customer sees the reason.
+**As built, 2026-10-19.** This replaces the first draft's `portal_submission_converted` call with a claim plus an orders trigger.
 
-**Rule:** intake never writes `design.settings`, `quote`, `roadmap`, `shipDate` or any status. Those stay AM decisions, because they are money or commitments.
+1. **The Portal sends its snapshot.**
+   - `buildOrderSnapshot` reads the draft, its metals, centre stones and accent stones from the Portal's own tables, on the server. It sends names, not ids.
+   - `submitOrder` sends the snapshot as `order.submit {order}`. The key is the Portal order UUID.
+2. **`portal_order_submit` does two things in one transaction:**
+   - It inserts a `portal_submissions` row: the verbatim payload, the notes, `status 'received'`.
+   - It inserts a **draft order row**: `id = 'P' + <receipt uuid, no dashes>`, `status='draft'`, `order_no` null, `draft_owner='portal'`, `customer_code` and `customer_name` as Customer Master spells them, `workflow='Draft'`, `am='Portal'`, and `data = { _draft, _draftOwner:'portal', _form:<mapped form, §6.2>, _savedAt, customerName, style, createdBy:'Portal', workflow:'Draft', history:[], portal:{submission_id, portal_order_id, customer_code, submitted_by, submitted_email, submitted_at, notes} }`.
+   - This is the same shape the browser's own drafts have, so the app's realtime and poll already file it under `drafts`.
+   - `portal.notes` holds one sentence per thing the form couldn't hold.
+   - The Portal then calls `record_erp_submission`, and its copy becomes `submitted`.
+3. **AMs see it in the Portal orders panel** on New Order: drafts with `_draftOwner === 'portal'`, oldest first, visible to AM and Admin. The "+ New Order" tab shows the count.
+4. **The AM opens it (Review).**
+   - The form is pre-filled from `_form`.
+   - Above it: who sent it, and the list of things the form couldn't hold.
+   - The customer is locked, and the ship-to is editable.
+   - Opening stamps `_reviewBy` / `_reviewAt`, a notice for the panel ("X opened it"), not a lock.
+   - The autosave only ever updates this draft; it never inserts one.
+5. **Create:**
+   - It presses `portal_submission_claim` first, BEFORE `issue_order_no`. A second AM is told who has it and uses up no number.
+   - Then the ordinary Create runs, carrying `data.portal` and `data.shipTo`.
+   - Inserting the order fires the **orders trigger**. It marks the receipt `converted` (`order_id`, `order_no`, `decided_by`) and deletes the Portal draft, in the same transaction.
+   - A save that doesn't land releases the claim.
+6. **Decline, with a reason, in the page.**
+   - `portal_submission_decline` marks the receipt `declined` and deletes the draft.
+   - The customer sees the reason on their Drafts tab, and "Edit and send again" reopens the order (`reopen_declined_order`, after the gateway confirms the decline). A resend makes a new receipt.
+
+**The orders trigger (`portal_orders_guard`) is the guarantee:**
+- A Portal draft can be inserted only by `portal_order_submit`. It checks a transaction-local flag.
+- A Portal draft's receipt, owner and status can't change. Its form can.
+- An order carrying `data.portal.submission_id` can be inserted only while that receipt is `received`, and only for its customer. So one Portal order is never two orders.
+- **The fast path:** an ordinary order's UPDATE returns after two compares.
+
+**What the customer sees:**
+- **Received:** a "Received" card, with no number and no page.
+- **Created:** the ERP order, keeping their own label (end customer, sender) from the Portal's copy.
+- **Declined:** back in Drafts with the reason.
+
+**Rule:** intake never writes `design.settings`, `quote`, `roadmap`, `shipDate` or any status. Those stay AM decisions, because they are money or commitments. `portal.test.js` (F) holds this.
 
 ### 6.2 Field mapping: Portal → ERP `_form`
 
 | Portal field | ERP `_form` key | Rule |
 |---|---|---|
-| (fixed) | `mode:"CAD"`, `styleType:"New"`, `startPoint:"CAD Instructions"`, `platform:"Website"` | `"Website"` already exists in `PLATFORMS` (`05:81`) |
+| (fixed) | `mode:"CAD"`, `styleType:"New"`, `startPoint:""`, `platform:"Website"`, `personalPo:""`, `roadmap:""` | `"Website"` already exists in `PLATFORMS` (`05:81`). `startPoint` stays blank: a New CAD order derives "CAD Instructions" at Create |
 | customer (resolved, §4.1) | `customerId` | The id of the Customer Master entry whose `code` = the linked `customer_code` |
-| `client_po` | `refPo` | Proposal (D6) |
-| `end_customer_name` | `personalPo`, or text | **D6**: what "Personal PO" means is unconfirmed |
+| `client_po` | `refPo` | **D6** |
+| `end_customer_name` | (text) `cadInstructions`, as `End customer: …` | **D6**. `personalPo` is left blank for staff |
 | `product_type` | `style` | Ring, Earring, Pendant, Necklace and Bracelet map directly. Locks, Charm, Cufflinks and Other become `"Other"`, and the product name goes into `cadInstructions` (D7) |
 | `size_spec` | `size` | Only for Ring, Necklace and Bracelet, and only when it is digits with ≤2 decimals (`sanitizeSize`). Anything else goes into `cadInstructions` |
 | `quantity` | `quantity` | Integer ≥1 |
 | `finish_point` | `finishedProduct` | `file→File`, `wax→Wax`, `raw_casting→Raw Casting`, `polished_mounting→Polished Mounting`, `finished_piece→Finished Piece` |
 | metals | `metals:[{metal,color}]` | `"14k Yellow Gold"` → `{metal:"14K",color:"Yellow"}`. Platinum, Silver and Palladium have no colour. Keep the Portal's `display_order`, because ERP weights are positional. Area and surface finish have no ERP field: area goes into `cadInstructions`, finish into `mfgInstructions` |
 | centre stone | `center:{source, stoneType, color, clarity, colorText}` | See §6.3. **These feed pricing.** Prefill only exact matches; otherwise leave blank. A blank resolves to no rate, shown red, which is the ERP's own safe behaviour (`02_INVARIANTS.md:31-33`) |
-| accent stones | `stones:{source, types:[…]}` | One `types` row per distinct type, colour and clarity. Counts, sizes, shapes and setting styles go into `cadInstructions` |
-| stone shapes, mm, carats, certificates, setting styles | (text) `cadInstructions` | **Never** into `design.settings`. Unknown shapes there are priced off the Round chart (`bugs/2026-09-21-shape-fallthrough-to-round.md`) |
+| accent stones | `stones:{source, types:[…]}` | One source for all of them, or blank and listed. One `types` row per distinct type, colour and clarity. The Portal's accent form collects type, supply and quality only (no counts, sizes, shapes or setting styles) |
+| centre shapes, mm, carats, make, certificates | (text) `cadInstructions` | **Never** into `design.settings`. Unknown shapes there are priced off the Round chart (`bugs/2026-09-21-shape-fallthrough-to-round.md`) |
 | `description`, submission notes | `cadInstructions` | |
-| engraving text, positions, logo | `mfgInstructions` (prints on the job card) | The ERP has no engraving field. The logo file is a later phase (§10) |
-| `customer_requested_due_date` | (text) `cadInstructions` | There is no ERP field. The ship date is set by the roadmap at approval |
-| priority rush | `roadmap:""`, plus a `rush` request (§9) | The AM chooses the roadmap (`"Priority Rush"` exists) |
-| ship-to / drop-ship address, shipping method | **D5** | The ERP has no per-order address (only the customer's own). Proposal: a new optional `data.shipTo` key |
+| engraving text, positions, logo | `mfgInstructions` (prints on the job card) | The ERP has no engraving field. The logo file is a later phase (§10), so a logo is listed for the AM |
+| ~~`customer_requested_due_date`, priority rush~~ | — | **Not collected.** The Portal's order form has neither field (2026-10-19). The rows stay here for when it does: due date → text, rush → a `rush` request (§9) |
+| ship-to / drop-ship address, shipping method | `shipTo:{method, recipient, line1, line2, city, state, postal, country, phone}` | **D5**. A new optional key; the ERP had no per-order address, only the customer's own. `method` is the Portal's `drop_ship` or `different_address`; `null` when the customer ships to their own address (`standard`). Create keeps it on the order only when it names somewhere else |
 | reference images | `images:[]` | Later phase: the gateway copies files into the bucket `order-images` under `intake_portal_<uuid>/ref_…` |
 
 **`cadInstructions` gets one fixed, readable block,** so the AM sees everything the customer said:
 
 ```
-[Portal order · submitted 2026-10-15 by Jane Smith (jane@heritage.com)]
+[Portal order · submitted 2026-10-19 by Jane Smith (jane@example.com)]
+End customer: Lauren M.
 Product: Cufflinks
-Metals: band — 14K White, high polish · head — 18K Yellow, matte
-Centre: 1 × Natural Diamond, Oval 7.00 × 5.00 mm, 1.00–1.20 ct, F/G, VS1–VS2, GIA, Dia-Co supplies
-Accents: 12 × Lab-Grown Round 1.30 mm, E/F VVS, U Prong, Dia-Co supplies
-Wanted by: 2026-11-20
+Metals: band — 14k White Gold, high polish · head — 18k Yellow Gold, matte
+Centre: Natural Diamond, Oval, 7 × 5 mm, 1.00–1.20 ct, colour F–G, clarity VS1–VS2, cert GIA, Dia-Co supplies
+Accents: Lab-Grown Diamond, E/F VVS, Dia-Co supplies
+Description: …
 Notes: …
 ```
+
+`mfgInstructions` gets the engraving (`Engraving (inside shank top): "…"`, or the logo) and the metal finish.
 
 ### 6.3 Stone vocabulary
 
@@ -348,9 +425,8 @@ Notes: …
 | Setting styles | `Prong`, `U Pave`, `Channel`, `Bezel` (`05:250`) | U Prong, Wall Pave, Single Prong, French Pave and Invisible are text only |
 | Product types | `STYLES` (`05:8`) | Locks, Charm and Cufflinks are not in the ERP list |
 
-**D7 asks the owner to choose:** trim the Portal form to the ERP's vocabulary (recommended for
-anything that feeds price), or extend the ERP lists. Until then, the "blank plus note" rules above
-apply.
+**D7 (decided 2026-10-19): map now, trim the form later.** Intake applies the "blank plus note" rules
+above. Trimming the Portal form to the ERP's vocabulary, for anything that feeds price, is a follow-up.
 
 ---
 
@@ -513,13 +589,13 @@ The ERP's AR views return nothing unless the caller has `read.ar`, so the gatewa
 
 | # | Question | Recommendation |
 |---|---|---|
-| D1 | Build intake before the schema rebuild? | Yes (§12) |
+| D1 | Build intake before the schema rebuild? | **DECIDED 2026-10-19 (owner): yes.** Intake is built now, on today's draft rows (§12) |
 | D2 | Customer stage list: include Finishing? Short or full path per order? | **DECIDED 2026-10-16 (owner): the stages the Portal already shows.** That is the `StageRibbon`: Designing → Production → QC → Shipping, or Designing → Wax production → Shipping for file and wax orders, plus the Designing sub-states and the existing status pills. The ERP maps its statuses into the Portal's `order_status` + `sub_status` (§7) |
-| D3 | Who handles portal drafts? | A shared Portal Review panel (AM and Admin), not one AM's private drafts |
+| D3 | Who handles portal drafts? | **DECIDED 2026-10-19 (owner): a shared Portal Review panel** on New Order that every AM and Admin sees, not one AM's private drafts |
 | D4 | Is "Shipped" the same as invoiced (`Done`)? | **DECIDED 2026-10-16 (owner): yes.** `workflow = 'Done'` is shown as shipped. Revisit if a real ship event is added |
-| D5 | Drop-ship address and shipping method on ERP orders? | Add an optional `data.shipTo` key and show it on the job card and invoice |
-| D6 | `refPo` vs `personalPo`: what does each mean? | `client_po → refPo`; confirm before mapping the end customer |
-| D7 | Vocabulary gaps (D/E colour, mixed supply, Locks/Charm/Cufflinks, Trapezoid/Cadillac, five setting styles, colour stones) | Trim the Portal form to the ERP lists for anything that feeds price |
+| D5 | Drop-ship address and shipping method on ERP orders? | **DECIDED 2026-10-19 (owner): a new optional `data.shipTo`** (recipient, address, phone, method). The AM sees it on the draft, and Create carries it onto the order. Printing it on the job card and invoice is a follow-up |
+| D6 | `refPo` vs `personalPo`: what does each mean? | **DECIDED 2026-10-19 (owner): the Portal's Client's PO → `refPo`; the end customer's name → `cadInstructions` text.** `personalPo` stays for staff. Why: `refPo` is the PO that ERP search, lists, prints, AR statements and the SDR export use, and Step 2 already shows it back to the customer as their PO. The code's only note on `personalPo` is "the number the customer's own staff match against" (`74:114`) |
+| D7 | Vocabulary gaps (D/E colour, mixed supply, Locks/Charm/Cufflinks, Trapezoid/Cadillac, five setting styles, colour stones) | **DECIDED 2026-10-19 (owner): map now, trim the form later.** Exact matches pre-fill; anything else is left blank and noted for the AM (§6.3). Trimming the Portal form to the ERP's lists is a follow-up |
 | D8 | Auto-link Sales Reps invited by a linked Customer Admin? | Yes, logged |
 | D9 | Portal shows Restore after a cancel (A4)? | Yes: the status follows the ERP |
 | D10 | Which Portal test logins survive the customer reset? | (plan §4, open) |

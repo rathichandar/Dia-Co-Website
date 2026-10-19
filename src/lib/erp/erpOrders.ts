@@ -17,6 +17,7 @@
 
 import { cache } from 'react'
 import { callGateway } from './gateway'
+import { loadSubmissionState, type SentOrder } from './erpSubmissions'
 import { computeStatusPill } from '@/lib/orders/statusPill'
 import type { OrderListItem, OrderListResult, OrdersTab, StageFilter } from '@/lib/orders/fetchOrdersList'
 import type {
@@ -153,6 +154,29 @@ function toListItem(o: ErpOrder, today: Date): OrderListItem {
   }
 }
 
+// Step 3 — an order this customer sent that Dia-Co has not created yet: the Portal's own copy, as a
+// "Received" card. It has no order number (an AM issues one at Create), so it has no order page either.
+function receivedItem(o: SentOrder): OrderListItem {
+  return {
+    orderId: o.id,
+    orderNumber: '',
+    endCustomerName: o.endCustomerName,
+    productLabel: o.productTypeName,
+    clientPo: o.clientPo,
+    status: 'submitted',
+    subStatus: null,
+    stageBadgeName: null,
+    statusPill: { kind: 'received', label: 'Received' },
+    subStatusText: 'Dia-Co is checking your order',
+    heroImageUrl: null,
+    price: null, // "Quote pending" — which it is
+    expectedShipDate: null,
+    submittedByName: o.submittedByName,
+    amName: null,
+    updatedAt: o.submittedAt ?? o.updatedAt,
+  }
+}
+
 // ─── The list ───────────────────────────────────────────────
 
 export async function fetchErpOrdersList(filters: {
@@ -171,10 +195,21 @@ export async function fetchErpOrdersList(filters: {
   const graceStart = new Date(today)
   graceStart.setDate(graceStart.getDate() - SHIPPED_GRACE_DAYS)
 
-  const all = res.data.orders.map((o) => ({ o, item: toListItem(o, today) }))
+  // Step 3 — what became of the orders this customer sent (one gateway call, only when there are any).
+  const sent = await loadSubmissionState()
+  const all = res.data.orders.map((o) => {
+    const item = toListItem(o, today)
+    // Created from an order this customer sent: keep their own label for it (end customer, who sent it).
+    const mine = sent.converted.get(o.order_no)
+    if (mine) {
+      item.endCustomerName = mine.endCustomerName
+      item.submittedByName = mine.submittedByName
+    }
+    return { o, item }
+  })
   const isActive = ({ o }: { o: ErpOrder }) =>
     o.status !== 'cancelled' && (!o.shipped || (day(o.shipped_on) ?? new Date(0)) >= graceStart)
-  const active = all.filter(isActive).map((x) => x.item)
+  const active = [...sent.received.map(receivedItem), ...all.filter(isActive).map((x) => x.item)]
   const cancelled = all.filter(({ o }) => o.status === 'cancelled').map((x) => x.item)
 
   const inProduction = (i: OrderListItem) => ['approved', 'in_production', 'qc', 'shipping', 'on_hold'].includes(i.status)
@@ -346,5 +381,9 @@ export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpO
     assignedAmId: brand<AccountManagerId>(''),
   }
   const am: AccountManager = { id: brand<AccountManagerId>(''), name: 'Dia-Co', email: '', role: 'Account Manager' }
-  return { kind: 'found', order: toOrder(o), customer, am }
+  const order = toOrder(o)
+  // Step 3 — an order this customer sent keeps their own name for it on its page too.
+  const mine = (await loadSubmissionState()).converted.get(o.order_no)
+  if (mine?.endCustomerName) order.poEndCustomerName = mine.endCustomerName
+  return { kind: 'found', order, customer, am }
 })
