@@ -20,7 +20,61 @@ changing anything on either side.
 
 ---
 
-## 0. Build status (updated 2026-10-19)
+## 0. Build status (updated 2026-10-20)
+
+**Step 4a (design review: the customer sees the design and the quote) is BUILT (2026-10-20). The SQL is applied on ERP staging and `portal-gateway` is redeployed with `order.design`; the new ERP build is not run yet.**
+- **The design** is the mockup approved on 2026-10-20 (claude.ai artifact `RU5kznD8fYYRWSx6dS12XT`), with the owner's rulings:
+  - the quote shows line for line as the printed quote;
+  - every version sent stays viewable;
+  - orders already at Client Review get a one-time fill before go-live (not built).
+- **ERP app:**
+  - **Send to Client Review** saves what the customer sees (§8) in the same save. Undo takes it off.
+  - **For a customer with an active Portal login,** a line under the buttons says what they will see. It turns amber when no quote will go with it.
+  - **Single homes in part 74:** `PriceDoc` and the Portal copy share `priceCellsOf`, `unpricedStonesOf` and the paper's two sentences.
+- **ERP SQL:** `db/2026-10-20-portal-design-review.sql` (`_portal_review_json`, `portal_order_design`). Proven in PGlite: 17 probes, 15 mutants (14 caught, 1 equivalent).
+- **Gateway:** new operation `order.design`. It signs the render paths and returns links only.
+- **The gate:** `portal.test.js` section H has 10 checks, trip-proven against 15 breaks. The ERP gate is green at 903 (deployable `8968fa23…`). Uncommitted.
+- **Portal:**
+  - **Data:** `fetchErpOrderPage` also asks for `order.design`, and the order page shows the versions in the existing gallery and version picker. `CadVersion.quote` is now nullable, and ERP versions carry `erpQuote`.
+  - **New components:** `ErpQuoteCard` (the printed quote's columns, caution and disclaimer) and `ErpReviewRail` (awaiting your review / working on the next version / approved).
+  - **For ERP orders:** the Phase 1 placeholder Approve, Modify and Rush controls are not shown. A "your design is being made" note shows before the first design.
+- **To switch it on, in this order:**
+  1. ~~The ERP SQL plus V1–V3, on ERP staging (`oncbcrpujxybprrqhglp`).~~ **Applied 2026-10-20 by the owner.** Verified live: `portal_order_design` exists, and a publishable-key call is refused with 42501, the same as `portal_whoami`. The V-block results weren't recorded.
+  2. ~~Redeploy `portal-gateway`.~~ **Done 2026-10-20** (CLI 2.121.0, `--no-verify-jwt --use-api`, from the ERP's uncommitted working tree after `portal.test.js` passed 65/65). Verified live: unsigned → 401 `PORTAL_UNSIGNED`; an unknown operation → 400; a signed `order.design` with a dummy token → 401 `PORTAL_FORBIDDEN`, so the operation is known. Until the SQL is applied, `order.design` fails and the Portal shows ERP orders without their designs, as before.
+  3. Run the new ERP build, then send a design to Client Review on a linked customer's order (DI10489) and open it in the Portal.
+- **Verified end to end on staging (2026-10-20, a browser agent on AB-1310, DI10489):**
+  - **Before the send:** the Portal showed no design, at New Order Request and still at Admin Review.
+  - **The Portal note:** amber with no quote; plain once a $174.00 quote was saved.
+  - **v1 sent:** 3 renders, all signed links that load; the model link; the quote line for line; "Awaiting your review".
+  - **v2 sent:** both versions in the picker, v1 still viewable with its own quote.
+  - **Undo of v2:** v2 left the Portal.
+  - **No leaks** in the HTML or RSC payload: no designer, raw paths, RAR or settings. No console errors.
+  - **Left on staging:** AB-1310 at Admin Review, with v1 on the Portal.
+- **Bugs that run found (not fixed yet):**
+  1. **The gallery hides renders when there are fewer than four.** With 3, thumbnail 3 is invisible and thumbnail 2 is clipped (`diaco-design.css`, `.cad-hero__thumbs` `grid-auto-rows: 1fr` with `aspect-ratio: 1`). The lightbox still reaches them.
+  2. **At Admin Review for v2 and later, the ribbon says "First CAD coming"** while v1 is on screen. The ERP sends `awaiting_design`, and `fetchErpOrderPage` doesn't adjust it when versions exist.
+  3. **ERP: Undo of a Send to Client Review leaves `clientV` raised,** so the next send is numbered v3 after the customer saw only v1 (`undoMove`, part 78).
+  4. **The header says "review CAD v1 and approve"** with no Approve control until Step 4b.
+- **Known limits:**
+  - Approve and Request changes from the Portal are Step 4b; until then the card sends the customer to their AM.
+  - Signed links last 2 hours; a reload makes new ones.
+
+**Step 1b (Portal access on the ERP's Customer Master) WORKS END TO END on ERP staging (2026-10-20).** It is ERP client code only: its SQL and `portal-admin` came with Step 1a and are on staging. The Portal doesn't change.
+- **The design** is the mockup approved on 2026-10-20 (claude.ai artifact `JWM4PWKpndoS7Wft3weN7z`).
+- **What Admin and AM get** (the seats with `portal.read`, `.invite` and `.revoke`):
+  - A **Portal** column on Customer Master (n active · n invited · n ended) and a **Portal** button on each row. Neither appears where `portal_links` can't be read.
+  - The **Portal access** card lists the customer's logins and invitations, open ones first, each with who added it: a staff name, or "Their Customer Admin, in the Portal".
+  - **Send again** on an invited row, and **Revoke…** with a required reason, decided in the card.
+  - **Invite a Customer Admin** (first name, last name, email). It is refused up front for a customer marked OLD.
+- **How it acts:** it reads `portal_links` and acts only through `portal-admin` (`invite` / `revoke`), which calls the Portal's `/api/erp/invite` and `/api/erp/link-revoke`. A revoke the Portal didn't confirm shows as a warning, "Revoked here".
+- **The gate:** `portal.test.js` section G has 5 checks, trip-proven against 8 breaks. The ERP gate is green at 893. Uncommitted.
+- **Then Customer Master went full width** (2026-10-20, owner): with the Portal column, its table no longer fit the shell's 1320px cap, so it now gets the full window as QC does. Deployable `dc0a295b…`.
+- **The browser run (2026-10-20).** The Portal ran behind a cloudflared tunnel, with staging's `PORTAL_SITE_URL` pointed at it and dev auto-login off while the tunnel was open. On DI10489:
+  - **Invite:** `rathichandar101+erp1b@gmail.com` showed as Invited. The Portal's `POST /api/erp/invite` answered 200, and a pending invitation appeared there.
+  - **Send again:** "the same invitation". The Portal answered 200, and no new row appeared.
+  - **Revoke:** the button stayed disabled for an empty or blank reason. With a reason, the row became Revoked by Chandar, `/api/erp/link-revoke` answered 200, and the Portal's invitation became `revoked`.
+  - The main linked login (`rathichandar101+erp@gmail.com`) stayed Active. No exceptions and no dialogs.
+- **Before the next invite:** `PORTAL_SITE_URL` still names that tunnel, which is now closed. Reset it to a new tunnel, or to a deployed Portal.
 
 **Step 3 (order intake) WORKS END TO END on ERP staging (2026-10-19).**
 - **Applied and deployed:** the owner applied both SQL files, and `portal-gateway` was redeployed. Verified live: `order.submit` and `submissions.list` are known operations.
@@ -143,7 +197,7 @@ The first real run:
 5. The Portal must be reachable from the internet, so a deployed preview or a tunnel.
 6. Invite from the ERP staging console, as the ERP README shows.
 
-**Known limit:** a Customer Admin can revoke an ERP-sent invitation from the Portal's `/team`, and the ERP isn't told. Its link stays `invited` until staff revoke it there. Step 1b's screen should show this.
+**Known limit:** a Customer Admin can revoke an ERP-sent invitation from the Portal's `/team`, and the ERP isn't told. Its link stays `invited` until staff revoke it there. Step 1b's card says so under the list whenever an invitation is open.
 
 ---
 
@@ -292,7 +346,7 @@ tables.
 | `submissions.list` | `portal_submissions_list` | `{}` → `{submissions: [{submission_id, portal_order_id, status: received\|converted\|declined, received_at, decided_at, order_no, decline_reason}]}` | The latest receipt of each Portal order of the last 12 months: the open one, else the newest declined. Never who decided |
 | `orders.list` | `portal_orders_list` | `{filter: active\|cancelled\|all, after?, limit≤100}` → `[OrderSummary]` | Paged with a fixed order (ERP rule: never `.limit` past 1,000) |
 | `order.get` | `portal_order_get` | `{order_no \| submission_id}` → `OrderDetail` | |
-| `order.design` | `portal_order_design` | `{order_no}` → `{version, renders:[signed url], model_url, quote}` | Only while the order is at Client Review or later (§8) |
+| `order.design` | `portal_order_design` | `{order_no}` → `{order_no, renders_unavailable, versions: [{v, at, renders:[signed url], model_url, quote}]}`, oldest first | Every design sent for Client Review (§8); none before the first |
 | `request.submit` | `portal_request_submit` | `{order_no, kind: approve\|modify\|cancel\|rush, text, against_v?}` → `{request_id, status:"pending"}` | Never changes order state |
 | `requests.list` | `portal_requests_list` | `{order_no?}` → `[Request]` | |
 | `link.confirm` | `portal_link_confirm` | `{invite_ref}` → `{customer_code, role}` | Called once, when an invite is accepted (§9) |
@@ -472,15 +526,25 @@ or was ordered, shipped or cancelled in the last 12 months. Imported Orderwise o
 
 ## 8. Design review and quote: `order.design`
 
-- **Snapshot at Send to Client Review (Proposal).** When an AM presses **Send to Client Review**, the ERP app writes `data.portal.review` in the same save. It is computed **with `publishedRendersOf()`**, so the "which design is current" rule keeps its single home:
+**Built in Step 4a (2026-10-20)** as below. The snapshot lives in its own key, `data.portalReviews`, not `data.portal.review` as first proposed, because `data.portal` is Step 3's receipt and the ERP's "From the Portal" banner shows whenever it exists.
+
+- **One snapshot per showing.** When an AM presses **Send to Client Review**, the ERP app appends `portalReviewOf(o)` (part 30) to `data.portalReviews` in the same save as the move. Every version sent stays, so the customer can look back at v1 after v2 (owner ruling). Undo in Transactions removes the one that send added.
   ```
-  { v: versionLabelOf(o), at, renders: [storage paths], model_url: design.modelUrl,
-    quote: { lines: [{dept, process, pc, wt, rate|null, qty, amount}], total, caution } }
+  { v: versionLabelOf(o), at, renders: [storage paths of this order only], model_url,
+    quote: { lines: [{dept, process, pc, wt, rate, qty, amount, rjo, added}], total, caution, caution_note, disclaimer } | null }
   ```
-- **Quote lines follow `PriceDoc`'s own rules** (`74:41-179`): the rate is hidden when the amount was overridden, RJO lines are included, and the `stoneCaution` flag is carried. Amounts are dollars with 2 decimals, as stored. The Portal displays them and never recomputes them.
-- **Renders.** The gateway returns signed URLs for `renders` from the private bucket `order-images`, with a 7,200 s lifetime to match the app's `SIGNED_TTL`.
+- **Renders follow `publishedRendersOf()`**, so the "which design is current" rule keeps its single home. The model link is the one the AM sees on the card (the live link, else the newest round that wasn't errored), normalised.
+- **The quote is the saved quote, as the printed quote reads it** (owner ruling: line for line):
+  - Each cell (pc, wt, rate, qty) is the paper's own text, from `priceCellsOf`, which `PriceDoc` now prints through.
+  - The rate is blank when the amount was overridden. RJO and ADDED lines are kept.
+  - The caution comes from `unpricedStonesOf`, the editor's own rule. The caution and the disclaimer are the paper's sentences (`QUOTE_STONE_CAUTION`, `QUOTE_DISCLAIMER`).
+  - Amounts are dollars with 2 decimals. The Portal displays them and never recomputes them.
+  - No saved quote, or a stale one: `quote: null`, and the Portal says the quote will come from the account manager.
+- **The read** (`portal_order_design`) rebuilds each snapshot key by key (`_portal_review_json`). Only this order's render paths, an http(s) model link and the nine line fields can leave. The order must be one `portal_order_get` would show.
+- **Renders.** The gateway signs the paths from the private bucket `order-images` for 7,200 s, the app's `SIGNED_TTL`, and returns links, never paths. If signing fails it returns `renders_unavailable: true`, and the Portal says the images could not load.
 - **Never included:** `rarUrl`, designer, settings internals and quote inputs.
-- **This changes how AMs work.** Today an AM shares renders outside the app; the Portal becomes that channel.
+- **This changes how AMs work.** Today an AM shares renders outside the app; the Portal becomes that channel. For a customer with a Portal login, the ERP's Send bar says what they will see.
+- **Before go-live:** orders already at Client Review have no snapshot until sent again. A one-time fill from each order's current renders and saved quote is planned (owner ruling), and not built.
 
 ---
 
@@ -533,7 +597,7 @@ The ERP's AR views return nothing unless the caller has `read.ar`, so the gatewa
 3. **Edge Functions in a new `supabase/functions/`:** `portal-gateway` and `portal-admin`, deployed with the Supabase CLI. Add "re-deploy functions" to the staging-restore checklist.
 4. **App changes:**
    - **New Order:** a Portal Review panel, Create carrying `data.portal`, and Decline with a reason. Update the Drop 11 banner comment, since portal drafts are a shared exception to "visible only to the AM who made them".
-   - **Send to Client Review:** write `data.portal.review` (§8).
+   - **Send to Client Review:** append to `data.portalReviews` (§8). Built in Step 4a.
    - **Order detail:** a Portal requests panel, plus a requests queue.
    - **Customer Master:** Invite to Portal, the linked logins list, and Revoke.
 5. **`portal.test.js`, added to the `check` script.** It checks:

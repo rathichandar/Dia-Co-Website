@@ -1,6 +1,6 @@
 # Diaco Portal — Project Context
 
-**Last updated:** October 19, 2026 (ERP integration Step 3, order intake, built; Steps 1–2 on ERP staging)
+**Last updated:** October 20, 2026 (ERP integration Step 4a, design review, built but not yet applied; Steps 1a, 1b, 2 and 3 on ERP staging)
 **Maintained by:** Claude, at Arpit's direction. Replaced after each work session.
 **Status:**
 - **Done:** Phase 2C Sub-sessions 1-4 are live in prod (https://diaco-portal.vercel.app). Sub-session 5 (Customer Admin `/team` + invitations) is built in code, and its migrations are applied to the portal database (verified 2026-10-15: `/team` loads members and pending invitations). Whether SS5 is deployed to prod is unverified.
@@ -8,7 +8,9 @@
 - **ERP integration** (`ERP_INTEGRATION_CONTRACT.md` §0 has the detail):
   - **Steps 1–2 work on ERP staging:** identity links and invites, and a linked customer's orders read from the ERP.
   - **Step 3 works end to end on staging (2026-10-19).** Orders are sent to the ERP, where AMs see a shared Portal orders panel and Create or Decline each one. A browser run verified both paths, and AB-1310 is the test order.
-- **Next:** Step 1b (Customer Master "Portal access") or Step 4 (design review and requests).
+  - **Step 1b works end to end on staging (2026-10-20).** ERP staff can see a customer's Portal logins on Customer Master, invite a Customer Admin, send an invitation again, and revoke. A browser run did all three through a tunnel to the Portal. It's ERP code only; the Portal side came with Step 1a.
+  - **Step 4a (design review) is built (2026-10-20), not yet applied or deployed.** When an AM sends a design to Client Review, the customer sees it on the order page: the renders, the 3D model, earlier versions, and the quote as the printed quote reads it. Switching it on needs the new ERP SQL, a `portal-gateway` redeploy and the new ERP build.
+- **Next:** switch on and test Step 4a, then Step 4b (customer requests: approve, request changes, cancel, rush).
 
 > **⚠ DIRECTION CHANGE: read before planning anything.** The "internal software" this doc and
 > `EXISTING_SYSTEMS_REFERENCE.md` describe (locally hosted, old dev team) was **replaced on
@@ -555,7 +557,11 @@ Customer Admin then invites Sales Reps within their company in either case.
      - **Drafts tab:** a declined order comes back with the reason, and "Edit and send again".
      - **Without the ERP configured,** Submit works as before.
    - **Status and the run-it-end-to-end steps** are in the contract's §0.
-   - **Next:** Step 1b, the ERP Customer Master "Portal access" screen (mockup first), and Step 4, design review and requests.
+   - **Step 1b (the ERP's Customer Master "Portal access") works end to end on ERP staging (2026-10-20).** ERP code only.
+   - **Step 4a (design review) is built (2026-10-20); nothing is applied or deployed yet.**
+     - **ERP:** Send to Client Review saves what the customer sees (`data.portalReviews`); new SQL file `db/2026-10-20-portal-design-review.sql`; gateway op `order.design`.
+     - **Portal:** `fetchErpOrderPage` reads it, and the order page shows the gallery, versions, `ErpQuoteCard` and `ErpReviewRail`.
+   - **Next:** switch on and test Step 4a, then Step 4b (customer requests).
 
 **Heritage Fine Jewelers test setup:** Arpit will provide a dummy personal email. The existing hardcoded customer record gets promoted to a real account tied to that dummy email. Used as a live test account throughout Phase 2C+.
 

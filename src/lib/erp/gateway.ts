@@ -12,7 +12,14 @@ import { randomUUID } from 'node:crypto'
 import { createClient } from '@/lib/supabase/server'
 import { HEADERS, signBody } from './signing'
 
-export type GatewayOp = 'whoami' | 'link.confirm' | 'orders.list' | 'order.get' | 'order.submit' | 'submissions.list'
+export type GatewayOp =
+  | 'whoami'
+  | 'link.confirm'
+  | 'orders.list'
+  | 'order.get'
+  | 'order.submit'
+  | 'submissions.list'
+  | 'order.design'
 
 export type GatewayResult<T> =
   | { ok: true; data: T }

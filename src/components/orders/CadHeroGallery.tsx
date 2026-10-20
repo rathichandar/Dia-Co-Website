@@ -7,6 +7,7 @@
 // don't reorder anything — they open the lightbox at that index.
 // ============================================================
 
+import { useState } from "react"
 import { Box, Download, GitCompare } from "lucide-react"
 import type { CadVersion } from "@/types/order"
 
@@ -16,6 +17,10 @@ interface CadHeroGalleryProps {
   activeVersionNumber: string
   onVersionChange: (versionNumber: string) => void
   onOpenLightbox: (index: number) => void
+  // Download and Compare do nothing yet; an ERP order (Step 4a) leaves them out.
+  showActions?: boolean
+  // The ERP could not turn its render paths into links just now (Step 4a).
+  imagesUnavailable?: boolean
 }
 
 export function CadHeroGallery({
@@ -24,15 +29,20 @@ export function CadHeroGallery({
   activeVersionNumber,
   onVersionChange,
   onOpenLightbox,
+  showActions = true,
+  imagesUnavailable = false,
 }: CadHeroGalleryProps) {
+  // A version whose hero image would not load (an ERP link lasts two hours): say so instead of a broken image.
+  const [brokenVersion, setBrokenVersion] = useState<string | null>(null)
   const activeVersion =
     cadVersions.find((v) => v.versionNumber === activeVersionNumber) ||
     cadVersions[cadVersions.length - 1]
 
   if (!activeVersion) return null
 
-  const hero = activeVersion.renders[0]
-  const thumbs = activeVersion.renders.slice(1, 5)
+  const imagesFailed = imagesUnavailable || brokenVersion === activeVersion.versionNumber
+  const hero = imagesFailed ? undefined : activeVersion.renders[0]
+  const thumbs = imagesFailed ? [] : activeVersion.renders.slice(1, 5)
 
   return (
     <section>
@@ -56,7 +66,11 @@ export function CadHeroGallery({
               src={hero.imageUrl}
               alt={`${poNumber} CAD ${activeVersion.versionNumber} — ${hero.label}`}
               loading="eager"
+              onError={() => setBrokenVersion(activeVersion.versionNumber)}
             />
+          )}
+          {imagesFailed && (
+            <div className="cad-hero__unavailable">The images could not load just now. Refresh the page to try again.</div>
           )}
           {activeVersion.threeDViewerUrl && (
             <a
@@ -115,14 +129,16 @@ export function CadHeroGallery({
               })}
             </span>
           </div>
-          <div className="cad-hero__actions">
-            <button type="button" className="btn btn--ghost btn--sm">
-              <Download size={14} /> Download
-            </button>
-            <button type="button" className="btn btn--ghost btn--sm">
-              <GitCompare size={14} /> Compare
-            </button>
-          </div>
+          {showActions && (
+            <div className="cad-hero__actions">
+              <button type="button" className="btn btn--ghost btn--sm">
+                <Download size={14} /> Download
+              </button>
+              <button type="button" className="btn btn--ghost btn--sm">
+                <GitCompare size={14} /> Compare
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

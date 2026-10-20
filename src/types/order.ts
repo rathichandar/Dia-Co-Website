@@ -267,6 +267,30 @@ export interface Quote {
   pdfUrl: string | null
 }
 
+// ─── ERP quote (ERP integration Step 4a) ───────────────────
+// A version read from the ERP carries its quote as the ERP's printed quote reads, cell for cell: the
+// text is the ERP's own (pc, wt, rate, qty) and is displayed, never recomputed. Amounts are dollars.
+
+export interface ErpQuoteLine {
+  dept: string
+  process: string
+  pc: string
+  wt: string
+  rate: string
+  qty: string
+  amount: number
+  rjo: boolean
+  added: boolean
+}
+
+export interface ErpQuote {
+  lines: ErpQuoteLine[]
+  total: number
+  caution: boolean
+  cautionNote: string | null
+  disclaimer: string | null
+}
+
 // ─── CadVersion — now carries its own quote snapshot ──────
 
 export interface CadVersion {
@@ -278,7 +302,10 @@ export interface CadVersion {
   threeDViewerUrl: string | null
   notesFromDesigner: string | null
   isLatest: boolean
-  quote: Quote
+  // The Portal's own quote (Phase 1 tables). null for a version read from the ERP, which carries erpQuote.
+  quote: Quote | null
+  // ERP integration Step 4a: the quote the ERP sent with this version, or null when it sent none.
+  erpQuote?: ErpQuote | null
 }
 
 // ─── Shipping ───────────────────────────────────────────────
@@ -435,6 +462,8 @@ export interface Order {
   // pill can show e.g. "On hold", which `currentStage` alone cannot carry).
   source?: "portal" | "erp"
   portalStatus?: string
+  // ERP integration Step 4a: the ERP could not turn its render paths into links just now.
+  erpRendersUnavailable?: boolean
 }
 
 // ─── Helper: get a specific CAD version's quote ───────────

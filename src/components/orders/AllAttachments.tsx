@@ -24,7 +24,7 @@ export function AllAttachments({ order }: AllAttachmentsProps) {
   const totalFiles =
     order.customerAttachments.length +
     order.cadVersions.reduce((sum, v) => {
-      return sum + v.renders.length + (v.quote.pdfUrl ? 1 : 0)
+      return sum + v.renders.length + (v.quote?.pdfUrl ? 1 : 0)
     }, 0)
 
   return (
@@ -54,7 +54,7 @@ export function AllAttachments({ order }: AllAttachmentsProps) {
           fileType: "image" as const,
           label: r.label,
         }))
-        if (v.quote.pdfUrl) {
+        if (v.quote?.pdfUrl) {
           files.push({
             filename: `${order.poNumber}-${v.versionNumber}-quote.pdf`,
             sizeBytes: 0,
@@ -71,10 +71,10 @@ export function AllAttachments({ order }: AllAttachmentsProps) {
               month: "short",
               day: "numeric",
               year: "numeric",
-            })} · Quote: $${v.quote.estimatedTotal.toLocaleString("en-US", {
+            })}${v.quote ? ` · Quote: $${v.quote.estimatedTotal.toLocaleString("en-US", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
-            })}`}
+            })}` : ""}`}
             files={files}
           />
         )

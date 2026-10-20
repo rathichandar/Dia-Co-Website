@@ -28,6 +28,8 @@ export function ItemizedQuote({
 }: ItemizedQuoteProps) {
   const [isOpen, setIsOpen] = useState(true)
   const baseQuote = activeVersion.quote
+  // A version without the Portal's own quote (one read from the ERP) shows ErpQuoteCard instead.
+  if (!baseQuote) return null
   const quote = computeDisplayedQuote(baseQuote, priorityRush, isRushOn)
 
   const validityState = computeValidityState(quote.validity)

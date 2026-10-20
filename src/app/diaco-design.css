@@ -693,6 +693,69 @@
 }
 
 /* ============================================================
+   ERP QUOTE + REVIEW CARD (ERP integration Step 4a)
+   The quote as the ERP's printed quote reads it; the review card
+   that stands in for the action rail on an ERP order.
+   ============================================================ */
+.diaco-design .erp-quote__scroll { overflow-x: auto; }
+.diaco-design .erp-quote {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--font-sans); font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.diaco-design .erp-quote th {
+  text-align: left; padding: 0 8px 8px; white-space: nowrap;
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; color: var(--fg-3);
+}
+.diaco-design .erp-quote td { padding: 8px; vertical-align: top; color: var(--fg-1); }
+.diaco-design .erp-quote tr.is-run td,
+.diaco-design .erp-quote tbody tr:first-child td { border-top: 1px solid var(--dc-gray-200); }
+.diaco-design .erp-quote th:first-child,
+.diaco-design .erp-quote td:first-child { padding-left: 0; }
+.diaco-design .erp-quote th:last-child,
+.diaco-design .erp-quote td:last-child { padding-right: 0; }
+.diaco-design .erp-quote .num { text-align: right; white-space: nowrap; }
+.diaco-design .erp-quote td.dept {
+  color: var(--dc-brown); font-size: 11px; font-weight: 600; letter-spacing: 1px; white-space: nowrap;
+}
+/* an RJO discount reads as a deduction from the line it hangs off: red, against the numbers (as on the paper) */
+.diaco-design .erp-quote tr.is-rjo td.process { color: var(--dc-red); text-align: right; }
+.diaco-design .erp-quote tr.is-rjo td.amount { color: var(--dc-red); }
+.diaco-design .erp-quote tr.is-total td {
+  border-top: 2px solid var(--dc-black); padding-top: 10px; font-weight: 600;
+}
+.diaco-design .erp-quote tr.is-total td.amount { font-size: 15px; }
+.diaco-design .erp-quote__added {
+  margin-left: 6px; padding: 0 4px; border: 1px solid var(--dc-brown); border-radius: 2px;
+  font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--dc-brown);
+  vertical-align: 1px;
+}
+.diaco-design .erp-quote__caution {
+  margin-top: 12px; padding: 8px 10px; border: 2px solid var(--dc-red);
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600; line-height: 1.5; color: var(--dc-red);
+}
+.diaco-design .erp-quote__empty { margin: 0; font-family: var(--font-sans); font-size: 13px; line-height: 1.6; color: var(--fg-2); }
+.diaco-design .erp-rail__title {
+  margin-top: 6px; font-family: var(--font-display); font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--fg-1);
+}
+.diaco-design .erp-rail__text { margin: 10px 0 0; font-family: var(--font-sans); font-size: 13px; line-height: 1.6; color: var(--fg-2); }
+.diaco-design .erp-rail__total {
+  display: flex; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--dc-gray-200);
+  font-family: var(--font-sans); font-size: 13px; color: var(--fg-2);
+}
+.diaco-design .erp-rail__total strong { color: var(--fg-1); font-variant-numeric: tabular-nums; }
+.diaco-design .action-card__eyebrow.erp-rail__done { color: #2F6B45; }
+.diaco-design .erp-pending {
+  background: #fff; border: 1px solid var(--dc-gray-300); padding: 18px 22px;
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.6; color: var(--fg-2);
+}
+.diaco-design .cad-hero__unavailable {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 24px; text-align: center;
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.6; color: #5F4D38;
+}
+
+/* ============================================================
    INSTRUCTION HISTORY (thread)
    ============================================================ */
 .diaco-design .ihist {

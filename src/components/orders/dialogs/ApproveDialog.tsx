@@ -34,6 +34,8 @@ export function ApproveDialog({
   isRushOn,
   computedShipDate,
 }: ApproveDialogProps) {
+  // Only a version with the Portal's own quote can be approved here (an ERP order's design has no dialog yet).
+  if (!activeVersion.quote) return null
   const displayedQuote = computeDisplayedQuote(
     activeVersion.quote,
     order.priorityRush,

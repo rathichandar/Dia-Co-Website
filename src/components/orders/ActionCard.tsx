@@ -61,7 +61,8 @@ export function ActionCard({
     ? `Past versions cannot be approved. Switch to CAD ${latestVersionNumber} to approve, or request a modification if you wish to revert to this design.`
     : null
 
-  const baseTotal = activeVersion.quote.estimatedTotal
+  // Only Portal-table versions reach this card (an ERP order's rail is ErpReviewRail), and those always have a quote.
+  const baseTotal = activeVersion.quote?.estimatedTotal ?? 0
   const totalWithRush = baseTotal + (isRushOn ? order.priorityRush.fee : 0)
 
   return (
@@ -83,7 +84,7 @@ export function ActionCard({
         <div className="action-card__rows">
           <div className="row">
             <span>Quote validity</span>
-            <strong>{activeVersion.quote.validity.validForDays} days</strong>
+            <strong>{activeVersion.quote?.validity.validForDays ?? 0} days</strong>
           </div>
           <div className="row">
             <span>If approved today, ships</span>

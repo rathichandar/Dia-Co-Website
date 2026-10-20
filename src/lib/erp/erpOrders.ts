@@ -23,9 +23,11 @@ import type { OrderListItem, OrderListResult, OrdersTab, StageFilter } from '@/l
 import type {
   AccountManager,
   AccountManagerId,
+  CadVersion,
   Customer,
   CustomerId,
   DesigningSubState,
+  ErpQuote,
   FinishPoint,
   MetalColorId,
   MetalKaratId,
@@ -300,8 +302,8 @@ function stageDetailOf(o: ErpOrder): StageDetail {
       return {
         kind: 'designing',
         subState: designingSubState(o.sub_status),
-        currentCadVersion: '',
-        actionNeeded: null, // approving in the Portal arrives in Step 4
+        currentCadVersion: '', // the newest design sent, filled in by fetchErpOrderPage (Step 4a)
+        actionNeeded: null, // approving in the Portal arrives in Step 4b
         actionDeadline: null,
       }
     case 'qc':
@@ -343,7 +345,7 @@ function toOrder(o: ErpOrder): Order {
     customerAttachments: [],
     currentStage: stageOf(o),
     stageDetail: stageDetailOf(o),
-    cadVersions: [], // Step 4
+    cadVersions: [], // Step 4a: filled from order.design by fetchErpOrderPage
     priorityRush: { eligibility: 'not_requested', fee: 0, requestedAt: null, reviewedAt: null, reviewedBy: null, denialReason: null },
     submittedAt: day(o.ordered_on) ?? new Date(0),
     lastUpdatedAt: o.updated_at ? new Date(o.updated_at) : new Date(0),
@@ -355,14 +357,78 @@ function toOrder(o: ErpOrder): Order {
   }
 }
 
+// ─── The designs it was shown (Step 4a) ─────────────────────
+
+// One showing exactly as the gateway sends it (the SQL's allowlist, render paths already turned into links).
+interface ErpDesignVersion {
+  v: string
+  at: string | null
+  renders: string[]
+  model_url: string | null
+  quote: {
+    lines: ErpQuote['lines']
+    total: number
+    caution: boolean
+    caution_note: string | null
+    disclaimer: string | null
+  } | null
+}
+
+interface ErpDesign {
+  versions: CadVersion[]
+  rendersUnavailable: boolean
+}
+
+// Every showing the AM sent, oldest first, as the gallery's versions: the last one is the latest. A label that
+// repeats (an undone send can reuse one) gets its position, so the version picker can tell them apart.
+function toCadVersions(vs: ErpDesignVersion[]): CadVersion[] {
+  const seen = new Map<string, number>()
+  return vs.map((v, i) => {
+    const base = v.v || `v${i + 1}`
+    const n = (seen.get(base) ?? 0) + 1
+    seen.set(base, n)
+    const at = v.at ? new Date(v.at) : null
+    return {
+      versionNumber: n > 1 ? `${base} (${n})` : base,
+      deliveredAt: at && !Number.isNaN(at.getTime()) ? at : new Date(0),
+      deliveredByInternal: { name: 'Dia-Co', role: '' },
+      renders: v.renders.map((url, r) => ({ imageUrl: url, label: String(r + 1), isHero: r === 0 })),
+      stlFileUrl: null,
+      threeDViewerUrl: v.model_url,
+      notesFromDesigner: null,
+      isLatest: i === vs.length - 1,
+      quote: null,
+      erpQuote: v.quote
+        ? { lines: v.quote.lines, total: v.quote.total, caution: v.quote.caution, cautionNote: v.quote.caution_note, disclaimer: v.quote.disclaimer }
+        : null,
+    }
+  })
+}
+
+// null: no designs to show (none sent, or the ERP could not answer — the page then shows the order without them).
+async function fetchErpOrderDesign(orderNumber: string): Promise<ErpDesign | null> {
+  const res = await callGateway<{ ok: true; versions: ErpDesignVersion[]; renders_unavailable: boolean }>('order.design', { order_no: orderNumber })
+  if (!res.ok) {
+    if (!EXPECTED_NO_ERP.has(res.code) && res.code !== 'PORTAL_NOT_FOUND') {
+      console.error('[erpOrders] order.design failed; showing the order without its designs:', { code: res.code, message: res.message })
+    }
+    return null
+  }
+  return { versions: toCadVersions(res.data.versions ?? []), rendersUnavailable: res.data.renders_unavailable === true }
+}
+
 export type ErpOrderPage =
   | { kind: 'found'; order: Order; customer: Customer; am: AccountManager }
   | { kind: 'not_found' }
   | null // no ERP answer for this login: use the Portal's own tables
 
-// cache(): generateMetadata and the page ask for the same order in one request — one gateway call.
+// cache(): generateMetadata and the page ask for the same order in one request — one gateway call each.
+// The order and its designs are asked for together; the designs only count once the order is found.
 export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpOrderPage> => {
-  const res = await callGateway<{ ok: true; order: ErpOrder }>('order.get', { order_no: orderNumber })
+  const [res, design] = await Promise.all([
+    callGateway<{ ok: true; order: ErpOrder }>('order.get', { order_no: orderNumber }),
+    fetchErpOrderDesign(orderNumber),
+  ])
   if (!res.ok) {
     if (res.code === 'PORTAL_NOT_FOUND') return { kind: 'not_found' }
     if (!EXPECTED_NO_ERP.has(res.code)) {
@@ -382,6 +448,12 @@ export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpO
   }
   const am: AccountManager = { id: brand<AccountManagerId>(''), name: 'Dia-Co', email: '', role: 'Account Manager' }
   const order = toOrder(o)
+  // Step 4a — the designs the AM sent for review, with their quotes; the newest names the version under review.
+  if (design && design.versions.length) {
+    order.cadVersions = design.versions
+    order.erpRendersUnavailable = design.rendersUnavailable
+    if (order.stageDetail.kind === 'designing') order.stageDetail.currentCadVersion = design.versions[design.versions.length - 1].versionNumber
+  }
   // Step 3 — an order this customer sent keeps their own name for it on its page too.
   const mine = (await loadSubmissionState()).converted.get(o.order_no)
   if (mine?.endCustomerName) order.poEndCustomerName = mine.endCustomerName

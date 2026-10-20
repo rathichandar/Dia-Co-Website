@@ -93,7 +93,7 @@ function currentSubStateLabel(order: Order): string | null {
     case "awaiting_first_cad":
       return "First CAD coming"
     case "awaiting_customer_review":
-      return `CAD ${v} · awaiting your review`
+      return v ? `CAD ${v} · awaiting your review` : "Awaiting your review"
     case "awaiting_modifications":
       return "Working on your modifications"
     case "approved":
