@@ -71,17 +71,21 @@ export function OrderHeader({ order, amName }: OrderHeaderProps) {
         </div>
       </div>
 
-      <div className="order-head__actions">
-        <button type="button" className="btn btn--ghost">
-          <Share2 size={14} /> Share
-        </button>
-        <button type="button" className="btn btn--ghost">
-          <MessageCircle size={14} /> Message {amFirstName}
-        </button>
-        <button type="button" className="btn btn--ghost" aria-label="More">
-          <MoreHorizontal size={14} />
-        </button>
-      </div>
+      {/* Share, Message and More do nothing yet (messaging is a later step), so an ERP order leaves them out:
+          the Phase 1 spec allows no dead buttons in the launch build. */}
+      {order.source !== "erp" && (
+        <div className="order-head__actions">
+          <button type="button" className="btn btn--ghost">
+            <Share2 size={14} /> Share
+          </button>
+          <button type="button" className="btn btn--ghost">
+            <MessageCircle size={14} /> Message {amFirstName}
+          </button>
+          <button type="button" className="btn btn--ghost" aria-label="More">
+            <MoreHorizontal size={14} />
+          </button>
+        </div>
+      )}
     </header>
   )
 }
@@ -101,10 +105,17 @@ function computeActionLabel(order: Order): string | null {
   switch (order.stageDetail.subState) {
     case "awaiting_first_cad":
       return null
-    case "awaiting_customer_review":
-      return order.stageDetail.currentCadVersion
-        ? `review CAD ${order.stageDetail.currentCadVersion} and approve`
-        : "review the CAD and approve"
+    case "awaiting_customer_review": {
+      const review = order.stageDetail.currentCadVersion
+        ? `review CAD ${order.stageDetail.currentCadVersion}`
+        : "review the CAD"
+      if (order.source !== "erp") return `${review} and approve`
+      // An ERP order (Step 4b): nothing to ask once an approval or a change request is with Dia-Co; and without
+      // the ERP's request list (an older gateway) there is no Approve on the page, so the customer replies to their AM.
+      if (order.erpRequests === undefined) return review
+      const waiting = order.erpRequests.some((r) => r.status === "pending" && (r.kind === "approve" || r.kind === "modify"))
+      return waiting ? null : `${review} and approve`
+    }
     case "awaiting_modifications":
       return null
     case "approved":

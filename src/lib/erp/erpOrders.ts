@@ -28,6 +28,7 @@ import type {
   CustomerId,
   DesigningSubState,
   ErpQuote,
+  ErpRequest,
   FinishPoint,
   MetalColorId,
   MetalKaratId,
@@ -55,6 +56,9 @@ export interface ErpOrder {
   ordered_on: string | null
   cancelled_on: string | null
   ref_po: string | null
+  // The order's end customer as the ERP holds it (typed by Dia-Co, or brought from the Portal at intake). Absent from
+  // a gateway older than db/2026-10-22-portal-end-customer.sql.
+  end_customer?: string | null
   quantity: number
   size: string | null
   metals: string[]
@@ -138,7 +142,7 @@ function toListItem(o: ErpOrder, today: Date): OrderListItem {
   return {
     orderId: o.order_no,
     orderNumber: o.order_no,
-    endCustomerName: null,
+    endCustomerName: o.end_customer ?? null,
     productLabel: productLabel(o),
     clientPo: o.ref_po,
     status: o.status,
@@ -201,10 +205,10 @@ export async function fetchErpOrdersList(filters: {
   const sent = await loadSubmissionState()
   const all = res.data.orders.map((o) => {
     const item = toListItem(o, today)
-    // Created from an order this customer sent: keep their own label for it (end customer, who sent it).
+    // Created from an order this customer sent: who sent it, and their own end customer when the ERP holds none.
     const mine = sent.converted.get(o.order_no)
     if (mine) {
-      item.endCustomerName = mine.endCustomerName
+      item.endCustomerName = item.endCustomerName ?? mine.endCustomerName
       item.submittedByName = mine.submittedByName
     }
     return { o, item }
@@ -329,7 +333,7 @@ function toOrder(o: ErpOrder): Order {
     id: brand<OrderId>(o.order_no),
     poNumber: o.order_no,
     styleNumber: o.style_no,
-    poEndCustomerName: null,
+    poEndCustomerName: o.end_customer ?? null,
     softwareOrderId: o.order_no,
     personalPo: o.ref_po,
     customerId: brand<CustomerId>(''),
@@ -379,30 +383,84 @@ interface ErpDesign {
   rendersUnavailable: boolean
 }
 
-// Every showing the AM sent, oldest first, as the gallery's versions: the last one is the latest. A label that
-// repeats (an undone send can reuse one) gets its position, so the version picker can tell them apart.
+// Every showing the AM sent, oldest first, as the gallery's versions: the last one is the latest.
+// A showing that repeats the label of the one before it is that version sent again with an updated quote (an AM
+// re-quoting at Client Review, 2026-10-22): it takes the version's place — its quote, and its stamp, which an approval
+// names — while the version keeps the day it was first sent. A label that comes back later gets its position, so the
+// version picker can tell them apart.
 function toCadVersions(vs: ErpDesignVersion[]): CadVersion[] {
+  const folded: { label: string; first: ErpDesignVersion; last: ErpDesignVersion }[] = []
+  vs.forEach((v, i) => {
+    const label = v.v || `v${i + 1}`
+    const prev = folded[folded.length - 1]
+    if (prev && prev.label === label) prev.last = v
+    else folded.push({ label, first: v, last: v })
+  })
+  const when = (s: string | null) => {
+    const d = s ? new Date(s) : null
+    return d && !Number.isNaN(d.getTime()) ? d : null
+  }
   const seen = new Map<string, number>()
-  return vs.map((v, i) => {
-    const base = v.v || `v${i + 1}`
-    const n = (seen.get(base) ?? 0) + 1
-    seen.set(base, n)
-    const at = v.at ? new Date(v.at) : null
+  return folded.map(({ label, first, last: v }, i) => {
+    const n = (seen.get(label) ?? 0) + 1
+    seen.set(label, n)
     return {
-      versionNumber: n > 1 ? `${base} (${n})` : base,
-      deliveredAt: at && !Number.isNaN(at.getTime()) ? at : new Date(0),
+      versionNumber: n > 1 ? `${label} (${n})` : label,
+      deliveredAt: when(first.at) ?? new Date(0),
       deliveredByInternal: { name: 'Dia-Co', role: '' },
       renders: v.renders.map((url, r) => ({ imageUrl: url, label: String(r + 1), isHero: r === 0 })),
       stlFileUrl: null,
       threeDViewerUrl: v.model_url,
       notesFromDesigner: null,
-      isLatest: i === vs.length - 1,
+      isLatest: i === folded.length - 1,
       quote: null,
       erpQuote: v.quote
         ? { lines: v.quote.lines, total: v.quote.total, caution: v.quote.caution, cautionNote: v.quote.caution_note, disclaimer: v.quote.disclaimer }
         : null,
+      erpReviewAt: v.at,
+      erpQuoteUpdatedAt: v !== first ? when(v.at) : null,
     }
   })
+}
+
+// ─── What the customer asked for (Step 4b) ─────────────────
+
+// One request exactly as the gateway sends it (portal_requests_list: never who at Dia-Co decided).
+interface ErpRequestRow {
+  request_id: string
+  kind: ErpRequest['kind']
+  text: string | null
+  against_v: string | null
+  quote_total: number | null
+  asked_by: string | null
+  status: ErpRequest['status']
+  created_at: string
+  decided_at: string | null
+  note: string | null
+}
+
+// undefined: the ERP did not answer the list (an older gateway, or a failed call) -- the page then offers no
+// requests, exactly as before Step 4b.
+async function fetchErpOrderRequests(orderNumber: string): Promise<ErpRequest[] | undefined> {
+  const res = await callGateway<{ ok: true; requests: ErpRequestRow[] }>('requests.list', { order_no: orderNumber })
+  if (!res.ok) {
+    if (!EXPECTED_NO_ERP.has(res.code)) {
+      console.error('[erpOrders] requests.list failed; showing the order without its requests:', { code: res.code, message: res.message })
+    }
+    return undefined
+  }
+  return (res.data.requests ?? []).map((r) => ({
+    id: r.request_id,
+    kind: r.kind,
+    text: r.text ?? '',
+    againstV: r.against_v,
+    quoteTotal: typeof r.quote_total === 'number' ? r.quote_total : r.quote_total == null ? null : Number(r.quote_total),
+    askedBy: r.asked_by ?? '',
+    status: r.status,
+    createdAt: new Date(r.created_at),
+    decidedAt: r.decided_at ? new Date(r.decided_at) : null,
+    note: r.note,
+  }))
 }
 
 // null: no designs to show (none sent, or the ERP could not answer — the page then shows the order without them).
@@ -425,9 +483,10 @@ export type ErpOrderPage =
 // cache(): generateMetadata and the page ask for the same order in one request — one gateway call each.
 // The order and its designs are asked for together; the designs only count once the order is found.
 export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpOrderPage> => {
-  const [res, design] = await Promise.all([
+  const [res, design, requests] = await Promise.all([
     callGateway<{ ok: true; order: ErpOrder }>('order.get', { order_no: orderNumber }),
     fetchErpOrderDesign(orderNumber),
+    fetchErpOrderRequests(orderNumber),
   ])
   if (!res.ok) {
     if (res.code === 'PORTAL_NOT_FOUND') return { kind: 'not_found' }
@@ -452,10 +511,45 @@ export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpO
   if (design && design.versions.length) {
     order.cadVersions = design.versions
     order.erpRendersUnavailable = design.rendersUnavailable
-    if (order.stageDetail.kind === 'designing') order.stageDetail.currentCadVersion = design.versions[design.versions.length - 1].versionNumber
+    if (order.stageDetail.kind === 'designing') {
+      order.stageDetail.currentCadVersion = design.versions[design.versions.length - 1].versionNumber
+      // The ERP answers awaiting_design at Admin Review and CAD Error whether or not a version was shown. Once one
+      // was, the work in hand is the next version, not the first.
+      if (order.stageDetail.subState === 'awaiting_first_cad') order.stageDetail.subState = 'awaiting_modifications'
+    }
   }
-  // Step 3 — an order this customer sent keeps their own name for it on its page too.
+  // Step 4b — what the customer asked for on this order, newest first.
+  order.erpRequests = requests
+  // The ERP's end customer first (Dia-Co may have typed or corrected it); an order this customer sent falls back to
+  // their own wording.
   const mine = (await loadSubmissionState()).converted.get(o.order_no)
-  if (mine?.endCustomerName) order.poEndCustomerName = mine.endCustomerName
+  if (!order.poEndCustomerName && mine?.endCustomerName) order.poEndCustomerName = mine.endCustomerName
   return { kind: 'found', order, customer, am }
 })
+
+// ─── Is a page still current? (Step 4b) ─────────────────────
+
+// What decides which requests an order's page offers: its status, whether a design waits for the customer's
+// review, and the newest showing's stamp. Read again when a request button is pressed (checkErpOrderPage), so a
+// page Dia-Co has moved past since it loaded is refreshed instead of opening a dialog the ERP would refuse.
+export interface ErpReviewState {
+  status: ErpPortalStatus
+  awaitingReview: boolean
+  latestReviewAt: string | null
+}
+
+// null: the ERP could not answer just now.
+export async function fetchErpReviewState(orderNumber: string): Promise<ErpReviewState | null> {
+  const [res, design] = await Promise.all([
+    callGateway<{ ok: true; order: ErpOrder }>('order.get', { order_no: orderNumber }),
+    callGateway<{ ok: true; versions: ErpDesignVersion[] }>('order.design', { order_no: orderNumber }),
+  ])
+  if (!res.ok || !design.ok) return null
+  const o = res.data.order
+  const versions = design.data.versions ?? []
+  return {
+    status: o.status,
+    awaitingReview: o.status === 'designing' && o.sub_status === 'awaiting_review',
+    latestReviewAt: versions.length ? versions[versions.length - 1].at ?? null : null,
+  }
+}

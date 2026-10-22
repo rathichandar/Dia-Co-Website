@@ -20,6 +20,9 @@ export type GatewayOp =
   | 'order.submit'
   | 'submissions.list'
   | 'order.design'
+  | 'request.submit'
+  | 'requests.list'
+  | 'order.invoice'
 
 export type GatewayResult<T> =
   | { ok: true; data: T }

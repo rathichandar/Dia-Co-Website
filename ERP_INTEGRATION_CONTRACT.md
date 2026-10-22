@@ -20,9 +20,60 @@ changing anything on either side.
 
 ---
 
-## 0. Build status (updated 2026-10-20)
+## 0. Build status (updated 2026-10-22)
 
-**Step 4a (design review: the customer sees the design and the quote) is BUILT (2026-10-20). The SQL is applied on ERP staging and `portal-gateway` is redeployed with `order.design`; the new ERP build is not run yet.**
+**P1-09 (the invoice on the Portal) is BUILT (2026-10-22). The SQL is applied on ERP staging and `portal-gateway` is redeployed with `order.invoice`; it is not yet seen on an invoiced order, and nothing is committed.**
+- **The idea:** the ERP makes no PDF files; every paper is HTML its browser prints, and "Save as PDF" is the print dialog's. So the Portal draws the ERP's own invoice paper (`PriceDoc`, part 74) and prints it the same way. Owner rulings 2026-10-22: it prints as the ERP's paper prints, discounts included; only logins with "View invoices" (`user_profiles.can_view_invoices`) see it.
+- **ERP SQL:** `db/2026-10-22-portal-invoice.sql`. `portal_order_invoice` finds the order as `portal_order_get` does and returns the paper's content (§5), worked out statement for statement as part 74 works it. Proven in PGlite: 17 probes against the app's own `priceCellsOf`, `orderLines`, `money` and `docWithDiscounts`.
+- **Gateway:** new operation `order.invoice`.
+- **The gate:** `portal.test.js` section M (5 checks). The ERP gate is green at 946.
+- **Portal:**
+  - **On the order page:** an Invoice card (number, dates, total, "View & download PDF") once the order is shipping and invoiced, for a login with "View invoices".
+  - **`/orders/[orderId]/invoice`:** the paper (`ErpInvoicePaper`, with the ERP's logo and seal in `public/invoice/`) and a "Download PDF" bar. Printed, only the sheet comes out, on one Letter page. Anyone else, or an order not invoiced, gets not found.
+- **To switch it on, in this order:**
+  1. ~~The ERP SQL plus V1–V3, on ERP staging (`oncbcrpujxybprrqhglp`).~~ **Applied by the owner, 2026-10-22**, with `db/2026-10-22-portal-end-customer.sql`. The V-block results weren't recorded. Verified live as the DI10489 login (a customer_admin with "View invoices"): `order.invoice` on AB-1310 (at Ready for Invoicing, so `shipping`) answers `{ok, invoice: null}`; `order.get` carries `end_customer` ("Agent Create"); the Portal's AB-1310 page shows no Invoice card and its `/invoice` page is not found, as it should be until the order is invoiced.
+  2. ~~Redeploy `portal-gateway`.~~ **Done 2026-10-22** (CLI 2.121.0, `--no-verify-jwt --use-api`, after `portal.test.js` passed 94/94). Verified live: unsigned → 401 `PORTAL_UNSIGNED`; an unknown operation → 400; a signed `order.invoice` with a dummy token → 401 `PORTAL_FORBIDDEN`, so the operation is known. Until the SQL is applied, `order.invoice` fails and the Portal shows the order without an Invoice card.
+  3. Invoice a DI10489 order in the ERP (AB-1310 is at Ready for Invoicing), then open it on the Portal as a DI10489 login with "View invoices".
+
+**Step 4b (customer requests: approve, changes, Priority Rush, cancel) is BUILT (2026-10-21). Its SQL is on ERP staging and `portal-gateway` is redeployed; the new ERP build is not tested yet, and nothing is committed.**
+- **The design** is the mockup approved on 2026-10-21 (claude.ai artifact `G11myAKecfwoW3dkEvNSXG`). Defaults of that day:
+  - an approval names the showing on screen and also accepts its quote (Arpit's rule); a newer showing sent meanwhile refuses it;
+  - changes and approval only at Client Review; Priority Rush until production starts; cancel while the order is designing (**Arpit to confirm**, his spec §6 Q2);
+  - one open request of each kind per order; text only (uploads are P1-02).
+- **ERP SQL:** `db/2026-10-21-portal-requests.sql`.
+  - **The table:** `portal_requests` (§9's columns; `client_key` makes a resend answer the same request).
+  - **Gateway functions:** `portal_request_submit` and `portal_requests_list`. For an approval, the version and the quote total are read from the ERP's own `data.portalReviews`, never from the Portal's body. The list never says who at Dia-Co decided.
+  - **Staff function:** `portal_request_decide` (done or declined; a decline needs a note the customer reads), under the new right `portal.requests` (Admin and AM).
+  - **The orders trigger** `portal_requests_follow` closes what the AM's own buttons answer:
+    - **A design's requests stay open only while it is at Client Review.** Leaving it for Approved closes an approval as done, and for Mod Requested a change request. Leaving it any other way (sent back for changes, CAD Error, the send undone) declines them with a note, so an old approval can never answer for the next version.
+    - **The roadmap set to Priority Rush** closes a rush request.
+    - **The order cancelled** closes a cancellation, and declines anything else open with "The order was cancelled."
+  - **Proven in PGlite** (Postgres 16.4 and 18.6): 51 probes, V2 and V3 included; 74 SQL mutants, 71 caught, 3 equivalent. The proof led to three changes:
+    - text that is only line breaks no longer counts as words;
+    - the stale-approval rule above;
+    - an approval names the showing by the same 40-character `at` the Portal is given.
+- **Gateway:** new operations `request.submit` and `requests.list`.
+- **ERP app:**
+  - **On the order:** a Portal requests panel under "From the Portal", with Mark done and Decline… (a note is required). It warns when the saved quote changed after the customer approved.
+  - **Request Modification** opens with the customer's words filled in.
+  - **The history lines** of Approve for Production and Request Modification name the request they close.
+  - **The queue:** a Portal requests table at the top of Orders, oldest first, for every AM and Admin, with a count on the Orders tab. "Waiting" turns amber past 4 hours. All of it updates live.
+- **The gate:** `portal.test.js` section I has 8 checks, trip-proven against 17 breaks (10 in the app and gateway, 7 in the SQL). Sections A and C now cover the new functions and operations. The ERP gate is green: 912 of this work's checks, 922 with another session's new `neworder.test.js`.
+- **Also in this build:** Step 4a's bug 3 is fixed (`undoMove` gives the version number back).
+- **Portal:**
+  - **Data:** `fetchErpOrderPage` also asks for `requests.list`. `Order.erpRequests` is undefined when the ERP doesn't answer, and then the page offers no requests at all (exactly Step 4a's page).
+  - **The rail** (`ErpReviewRail`, now a client component):
+    - Approve and Request changes at Client Review; "Approval sent" or "Changes requested" while one is open;
+    - an "Other requests" card for Priority Rush and cancel, shown before the first design too;
+    - a "Your requests" card with Dia-Co's replies.
+  - **The dialogs:** `ErpRequestDialog` (one per kind) sends `submitErpRequest`. A stale approval shows the ERP's sentence and "See the latest".
+  - **The header:** "review CAD v2 and approve" comes back for ERP orders, and goes away while an approval or change request is open. Share, Message and More are hidden on ERP orders (no dead buttons).
+- **To switch it on, in this order:**
+  1. ~~The ERP SQL plus V1–V3, on ERP staging (`oncbcrpujxybprrqhglp`).~~ **Applied by the owner, 2026-10-21.** Verified live: `portal_request_submit`, `portal_requests_list` and `portal_request_decide` exist and refuse the publishable key with 42501. The V-block results weren't recorded.
+  2. ~~Redeploy `portal-gateway`.~~ **Done 2026-10-21** (CLI 2.121.0, `--no-verify-jwt --use-api`, after `portal.test.js` passed 74/74). Verified live: unsigned → 401; an unknown operation → 400; signed `request.submit` and `requests.list` with a dummy token → 401 `PORTAL_FORBIDDEN`, so both operations are known.
+  3. Run the new ERP build. Then, as the linked login on DI10489, approve, request changes, ask for Rush and ask to cancel on test orders, and act on each in the ERP.
+
+**Step 4a (design review: the customer sees the design and the quote) is BUILT (2026-10-20). The SQL is applied on ERP staging, `portal-gateway` is redeployed with `order.design`, and it was verified end to end there in the browser the same day (below).**
 - **The design** is the mockup approved on 2026-10-20 (claude.ai artifact `RU5kznD8fYYRWSx6dS12XT`), with the owner's rulings:
   - the quote shows line for line as the printed quote;
   - every version sent stays viewable;
@@ -50,13 +101,13 @@ changing anything on either side.
   - **Undo of v2:** v2 left the Portal.
   - **No leaks** in the HTML or RSC payload: no designer, raw paths, RAR or settings. No console errors.
   - **Left on staging:** AB-1310 at Admin Review, with v1 on the Portal.
-- **Bugs that run found (not fixed yet):**
+- **Bugs that run found** (detail in `STEP_4A_BUGS.md`). 1, 2 and 4 are fixed in the Portal; 3 is fixed in the ERP (owner: give the number back). All four 2026-10-21, none yet seen live:
   1. **The gallery hides renders when there are fewer than four.** With 3, thumbnail 3 is invisible and thumbnail 2 is clipped (`diaco-design.css`, `.cad-hero__thumbs` `grid-auto-rows: 1fr` with `aspect-ratio: 1`). The lightbox still reaches them.
   2. **At Admin Review for v2 and later, the ribbon says "First CAD coming"** while v1 is on screen. The ERP sends `awaiting_design`, and `fetchErpOrderPage` doesn't adjust it when versions exist.
   3. **ERP: Undo of a Send to Client Review leaves `clientV` raised,** so the next send is numbered v3 after the customer saw only v1 (`undoMove`, part 78).
   4. **The header says "review CAD v1 and approve"** with no Approve control until Step 4b.
 - **Known limits:**
-  - Approve and Request changes from the Portal are Step 4b; until then the card sends the customer to their AM.
+  - Approve and Request changes from the Portal came with Step 4b (above).
   - Signed links last 2 hours; a reload makes new ones.
 
 **Step 1b (Portal access on the ERP's Customer Master) WORKS END TO END on ERP staging (2026-10-20).** It is ERP client code only: its SQL and `portal-admin` came with Step 1a and are on staging. The Portal doesn't change.
@@ -334,7 +385,7 @@ tables.
   - `FORBIDDEN` (42501)
   - `INVALID` (23514)
   - `NOT_FOUND` (P0002)
-  - `STALE` (40001)
+  - `STALE` (PT409, answered as HTTP 409). It was 40001 until 2026-10-22. PostgREST re-runs a transaction that fails with 40001, so a STALE refusal never answered and its call hung.
 - The Portal shows the server's sentence as written.
 
 ### Portal → ERP
@@ -347,6 +398,7 @@ tables.
 | `orders.list` | `portal_orders_list` | `{filter: active\|cancelled\|all, after?, limit≤100}` → `[OrderSummary]` | Paged with a fixed order (ERP rule: never `.limit` past 1,000) |
 | `order.get` | `portal_order_get` | `{order_no \| submission_id}` → `OrderDetail` | |
 | `order.design` | `portal_order_design` | `{order_no}` → `{order_no, renders_unavailable, versions: [{v, at, renders:[signed url], model_url, quote}]}`, oldest first | Every design sent for Client Review (§8); none before the first |
+| `order.invoice` | `portal_order_invoice` | `{order_no}` → `{order_no, invoice: null \| {invoice_no, date, due, company, groups: [{order_no, style_no, ref_po, personal_po, label, lines: [{dept, process, pc, wt, rate, qty, amount, rjo, added}], sub_total, discounts: [{doc_no, amount}], after_discount}], discounts, after_discount, shipping, total}}` | The invoice the order is on, as the ERP's paper prints it (P1-09); null until invoiced. The Portal shows it only to a login with "View invoices". Never inputs, overridden rates, who issued it, payments or balances |
 | `request.submit` | `portal_request_submit` | `{order_no, kind: approve\|modify\|cancel\|rush, text, against_v?}` → `{request_id, status:"pending"}` | Never changes order state |
 | `requests.list` | `portal_requests_list` | `{order_no?}` → `[Request]` | |
 | `link.confirm` | `portal_link_confirm` | `{invite_ref}` → `{customer_code, role}` | Called once, when an invite is accepted (§9) |
@@ -366,7 +418,7 @@ tables.
 { "order_no": "AB-1234", "style_no": "R-2001", "submission_id": "uuid|null", "style": "Ring",
   "phase": "production", "stage": "Setting", "label": "In production — Setting",
   "stages": ["Printing","Casting","Cleaning","Setting","Finishing","Final QC","Shipped"],
-  "customer_ship_date": "2026-11-20", "ref_po": "PO-77", "cancelled": false,
+  "customer_ship_date": "2026-11-20", "ref_po": "PO-77", "end_customer": "Lauren M.", "cancelled": false,
   "open_requests": 1, "updated_at": "…" }
 ```
 
@@ -434,33 +486,34 @@ shipped_at` and the customer's own submission when there is one.
 | (fixed) | `mode:"CAD"`, `styleType:"New"`, `startPoint:""`, `platform:"Website"`, `personalPo:""`, `roadmap:""` | `"Website"` already exists in `PLATFORMS` (`05:81`). `startPoint` stays blank: a New CAD order derives "CAD Instructions" at Create |
 | customer (resolved, §4.1) | `customerId` | The id of the Customer Master entry whose `code` = the linked `customer_code` |
 | `client_po` | `refPo` | **D6** |
-| `end_customer_name` | (text) `cadInstructions`, as `End customer: …` | **D6**. `personalPo` is left blank for staff |
-| `product_type` | `style` | Ring, Earring, Pendant, Necklace and Bracelet map directly. Locks, Charm, Cufflinks and Other become `"Other"`, and the product name goes into `cadInstructions` (D7) |
-| `size_spec` | `size` | Only for Ring, Necklace and Bracelet, and only when it is digits with ≤2 decimals (`sanitizeSize`). Anything else goes into `cadInstructions` |
+| `end_customer_name` | `endCustomer` | **D6, then 2026-10-22.** A field of its own on ERP orders: New Order, Edit details, the order screen. The Portal reads it back as `end_customer` (§7). `personalPo` is left blank for staff |
+| `product_type` | `style` | Ring, Earring, Pendant, Necklace and Bracelet map directly. Locks, Charm, Cufflinks and Other become `"Other"`, and the product name is in `portalSpec` (D7) |
+| `size_spec` | `size` | Only for Ring, Necklace and Bracelet, and only when it is digits with ≤2 decimals (`sanitizeSize`). The customer's own wording is always in `portalSpec` |
 | `quantity` | `quantity` | Integer ≥1 |
 | `finish_point` | `finishedProduct` | `file→File`, `wax→Wax`, `raw_casting→Raw Casting`, `polished_mounting→Polished Mounting`, `finished_piece→Finished Piece` |
-| metals | `metals:[{metal,color}]` | `"14k Yellow Gold"` → `{metal:"14K",color:"Yellow"}`. Platinum, Silver and Palladium have no colour. Keep the Portal's `display_order`, because ERP weights are positional. Area and surface finish have no ERP field: area goes into `cadInstructions`, finish into `mfgInstructions` |
+| metals | `metals:[{metal,color}]` | `"14k Yellow Gold"` → `{metal:"14K",color:"Yellow"}`. Platinum, Silver and Palladium have no colour. Keep the Portal's `display_order`, because ERP weights are positional. Area and surface finish have no ERP field: both are in `portalSpec`, and the finish also goes into `mfgInstructions` |
 | centre stone | `center:{source, stoneType, color, clarity, colorText}` | See §6.3. **These feed pricing.** Prefill only exact matches; otherwise leave blank. A blank resolves to no rate, shown red, which is the ERP's own safe behaviour (`02_INVARIANTS.md:31-33`) |
 | accent stones | `stones:{source, types:[…]}` | One source for all of them, or blank and listed. One `types` row per distinct type, colour and clarity. The Portal's accent form collects type, supply and quality only (no counts, sizes, shapes or setting styles) |
-| centre shapes, mm, carats, make, certificates | (text) `cadInstructions` | **Never** into `design.settings`. Unknown shapes there are priced off the Round chart (`bugs/2026-09-21-shape-fallthrough-to-round.md`) |
-| `description`, submission notes | `cadInstructions` | |
+| centre shapes, mm, carats, make, certificates; every centre stone and accent | `portalSpec` | **Never** into `design.settings`. Unknown shapes there are priced off the Round chart (`bugs/2026-09-21-shape-fallthrough-to-round.md`) |
+| `description`, submission notes | `cadInstructions` | The only text it carries since 2026-10-22: the description, then `Notes: …` |
 | engraving text, positions, logo | `mfgInstructions` (prints on the job card) | The ERP has no engraving field. The logo file is a later phase (§10), so a logo is listed for the AM |
 | ~~`customer_requested_due_date`, priority rush~~ | — | **Not collected.** The Portal's order form has neither field (2026-10-19). The rows stay here for when it does: due date → text, rush → a `rush` request (§9) |
 | ship-to / drop-ship address, shipping method | `shipTo:{method, recipient, line1, line2, city, state, postal, country, phone}` | **D5**. A new optional key; the ERP had no per-order address, only the customer's own. `method` is the Portal's `drop_ship` or `different_address`; `null` when the customer ships to their own address (`standard`). Create keeps it on the order only when it names somewhere else |
 | reference images | `images:[]` | Later phase: the gateway copies files into the bucket `order-images` under `intake_portal_<uuid>/ref_…` |
 
-**`cadInstructions` gets one fixed, readable block,** so the AM sees everything the customer said:
+**`portalSpec`, the customer's specification (2026-10-22, `db/2026-10-22-portal-end-customer.sql`).** What the customer
+chose, in their own words, kept beside the pre-filled form and carried onto the order at Create. The ERP shows it as
+tables on the AM's review and on the order screen, read-only. It prices nothing.
 
-```
-[Portal order · submitted 2026-10-19 by Jane Smith (jane@example.com)]
-End customer: Lauren M.
-Product: Cufflinks
-Metals: band — 14k White Gold, high polish · head — 18k Yellow Gold, matte
-Centre: Natural Diamond, Oval, 7 × 5 mm, 1.00–1.20 ct, colour F–G, clarity VS1–VS2, cert GIA, Dia-Co supplies
-Accents: Lab-Grown Diamond, E/F VVS, Dia-Co supplies
-Description: …
-Notes: …
-```
+- `product`, `size`.
+- `metals`: one row per metal, with `area`, `metal` and `finish`.
+- `center` and `accents`: one row per stone, with type, shape, size in mm, carat, colour, clarity, make, cert and who supplies it.
+  `center_has` and `accents_has` keep the customer's yes / no / to be decided.
+- `engraving`: text, position, logo and logo position.
+
+It replaced the block of text intake used to write into `cadInstructions` (header, end customer, product, metals,
+centre, accents). Orders already created from the Portal, and Portal drafts still waiting, were backfilled from their
+receipts; their CAD Instructions were left as they were.
 
 `mfgInstructions` gets the engraving (`Engraving (inside shank top): "…"`, or the logo) and the metal finish.
 
@@ -543,6 +596,25 @@ or was ordered, shipped or cancelled in the last 12 months. Imported Orderwise o
 - **The read** (`portal_order_design`) rebuilds each snapshot key by key (`_portal_review_json`). Only this order's render paths, an http(s) model link and the nine line fields can leave. The order must be one `portal_order_get` would show.
 - **Renders.** The gateway signs the paths from the private bucket `order-images` for 7,200 s, the app's `SIGNED_TTL`, and returns links, never paths. If signing fails it returns `renders_unavailable: true`, and the Portal says the images could not load.
 - **Never included:** `rarUrl`, designer, settings internals and quote inputs.
+- **A quote re-saved at Client Review (2026-10-22).** A showing freezes its quote, so a re-quote used to stay in the ERP
+  (AB-1316: shown at $1,492.10, re-saved at $2,775.20, the change request marked done, and the customer still saw $1,492.10).
+  - **ERP:** while the order is at Client Review and the saved quote differs from the last showing's, the card offers
+    **Send the new quote to the Portal**. For a change request, **Mark done** becomes "Mark done and send the new quote".
+  - **What is sent:** the last showing again, with the same version, renders and model, plus the saved quote and a new
+    `at` (`portalQuoteShowingOf`, part 30).
+  - **Approvals:** an approval names the new showing like any other. One still open against the old quote is declined,
+    with a note asking the customer to approve the new one.
+  - **Portal:** `toCadVersions` folds a repeated showing into its version. The version shows the latest quote and keeps
+    the day it was first sent, and the quote card says "Updated <date>".
+  - **What is on screen is what is sent.** Every send used to read the *saved* quote, so a quote changed in the ERP's
+    editor but not saved went out at the old total. Now, while the editor is open and its quote differs from the saved
+    one, Send to Client Review, Send the new quote and Mark done send the quote on screen. They save it first, in the same
+    save, and the notes say so.
+  - **The saved quote follows the details.**
+    - **Where the quote can be edited** (Admin or Client Review, not approved): a save in Edit details or section 2 that
+      changes the price re-saves the quote in the same save.
+    - **Anywhere else:** it marks the quote out of date.
+    - **What the customer sees:** only what is sent. At Client Review, the order card then offers Send the new quote.
 - **This changes how AMs work.** Today an AM shares renders outside the app; the Portal becomes that channel. For a customer with a Portal login, the ERP's Send bar says what they will see.
 - **Before go-live:** orders already at Client Review have no snapshot until sent again. A one-time fill from each order's current renders and saved quote is planned (owner ruling), and not built.
 
@@ -658,7 +730,7 @@ The ERP's AR views return nothing unless the caller has `read.ar`, so the gatewa
 | D3 | Who handles portal drafts? | **DECIDED 2026-10-19 (owner): a shared Portal Review panel** on New Order that every AM and Admin sees, not one AM's private drafts |
 | D4 | Is "Shipped" the same as invoiced (`Done`)? | **DECIDED 2026-10-16 (owner): yes.** `workflow = 'Done'` is shown as shipped. Revisit if a real ship event is added |
 | D5 | Drop-ship address and shipping method on ERP orders? | **DECIDED 2026-10-19 (owner): a new optional `data.shipTo`** (recipient, address, phone, method). The AM sees it on the draft, and Create carries it onto the order. Printing it on the job card and invoice is a follow-up |
-| D6 | `refPo` vs `personalPo`: what does each mean? | **DECIDED 2026-10-19 (owner): the Portal's Client's PO → `refPo`; the end customer's name → `cadInstructions` text.** `personalPo` stays for staff. Why: `refPo` is the PO that ERP search, lists, prints, AR statements and the SDR export use, and Step 2 already shows it back to the customer as their PO. The code's only note on `personalPo` is "the number the customer's own staff match against" (`74:114`) |
+| D6 | `refPo` vs `personalPo`: what does each mean? | **DECIDED 2026-10-19 (owner): the Portal's Client's PO → `refPo`; the end customer's name → `cadInstructions` text.** **Changed 2026-10-22 (owner): the end customer is its own order field, `endCustomer` (§6.2).** `personalPo` stays for staff. Why: `refPo` is the PO that ERP search, lists, prints, AR statements and the SDR export use, and Step 2 already shows it back to the customer as their PO. The code's only note on `personalPo` is "the number the customer's own staff match against" (`74:114`) |
 | D7 | Vocabulary gaps (D/E colour, mixed supply, Locks/Charm/Cufflinks, Trapezoid/Cadillac, five setting styles, colour stones) | **DECIDED 2026-10-19 (owner): map now, trim the form later.** Exact matches pre-fill; anything else is left blank and noted for the AM (§6.3). Trimming the Portal form to the ERP's lists is a follow-up |
 | D8 | Auto-link Sales Reps invited by a linked Customer Admin? | Yes, logged |
 | D9 | Portal shows Restore after a cancel (A4)? | Yes: the status follows the ERP |

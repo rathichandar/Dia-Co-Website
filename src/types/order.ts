@@ -306,6 +306,30 @@ export interface CadVersion {
   quote: Quote | null
   // ERP integration Step 4a: the quote the ERP sent with this version, or null when it sent none.
   erpQuote?: ErpQuote | null
+  // ERP integration Step 4b: the ERP's own stamp for this showing. An approval names it, and the ERP refuses
+  // the approval when a newer showing has been sent since.
+  erpReviewAt?: string | null
+  // When Dia-Co re-sent this version with an updated quote (the ERP sent the same version again at Client Review);
+  // null when the quote is the one the version first came with.
+  erpQuoteUpdatedAt?: Date | null
+}
+
+// ERP integration Step 4b: a request the customer made on an ERP order, as the ERP keeps it. It changes
+// nothing on the order: an AM acts on it, then marks it done or declined, with a note the customer reads.
+export type ErpRequestKind = "approve" | "modify" | "cancel" | "rush"
+
+export interface ErpRequest {
+  id: string
+  kind: ErpRequestKind
+  text: string
+  // approve and modify: the version on screen. approve: the quote total it was shown with (null: none).
+  againstV: string | null
+  quoteTotal: number | null
+  askedBy: string
+  status: "pending" | "done" | "declined"
+  createdAt: Date
+  decidedAt: Date | null
+  note: string | null
 }
 
 // ─── Shipping ───────────────────────────────────────────────
@@ -464,6 +488,9 @@ export interface Order {
   portalStatus?: string
   // ERP integration Step 4a: the ERP could not turn its render paths into links just now.
   erpRendersUnavailable?: boolean
+  // ERP integration Step 4b: the customer's requests on this ERP order, newest first. Undefined when the ERP
+  // did not answer the list (an older gateway, or a failed call): the page then offers no requests at all.
+  erpRequests?: ErpRequest[]
 }
 
 // ─── Helper: get a specific CAD version's quote ───────────

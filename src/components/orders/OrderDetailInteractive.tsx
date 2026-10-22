@@ -56,11 +56,12 @@ export function OrderDetailInteractive({
   const isOnLatest = activeVersion?.versionNumber === latestVersion?.versionNumber
 
   // ERP integration Step 4a: an order read from the ERP shows the designs the AM sent with the ERP's
-  // own quote, and a review card in place of the Portal's action rail (approving from here is Step 4b).
+  // own quote, and the ERP's rail in place of the Portal's action rail. Step 4b: that rail also carries
+  // the customer's requests (approve, changes, Priority Rush, cancel).
   const fromErp = order.source === "erp"
 
-  // No CAD version yet (a new order, or an ERP order before its first design is sent): no gallery,
-  // quote or action rail to show — but the order's own facts still are.
+  // No CAD version yet (a new order, or an ERP order before its first design is sent): no gallery or
+  // quote to show — but the order's own facts still are, and an ERP order's Priority Rush and cancel.
   if (!activeVersion) {
     return (
       <div className="order-page">
@@ -72,6 +73,7 @@ export function OrderDetailInteractive({
           <YourDescription order={order} customer={customer} />
           <OrderHistory order={order} />
         </div>
+        {fromErp && <ErpReviewRail order={order} latestVersion={null} />}
       </div>
     )
   }
@@ -112,7 +114,7 @@ export function OrderDetailInteractive({
       </div>
 
       {fromErp ? (
-        latestVersion && <ErpReviewRail order={order} latestVersion={latestVersion} />
+        <ErpReviewRail order={order} latestVersion={latestVersion ?? null} />
       ) : (
         <RightRail
           order={order}

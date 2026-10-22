@@ -2,9 +2,11 @@
 
 // ============================================================
 // CadHeroGallery
-// Fixed-position grid: render[0] is the large hero (always),
-// renders[1..5] are the four small thumbs (always). Clicks
-// don't reorder anything — they open the lightbox at that index.
+// render[0] is the large hero; renders[1..4] are up to four
+// thumbs beside it, laid out to fill the column for any count (an
+// ERP design has any number of renders). Past the fifth, the last
+// thumb says how many more the lightbox holds. Clicks don't reorder
+// anything — they open the lightbox at that index.
 // ============================================================
 
 import { useState } from "react"
@@ -43,10 +45,11 @@ export function CadHeroGallery({
   const imagesFailed = imagesUnavailable || brokenVersion === activeVersion.versionNumber
   const hero = imagesFailed ? undefined : activeVersion.renders[0]
   const thumbs = imagesFailed ? [] : activeVersion.renders.slice(1, 5)
+  const more = imagesFailed ? 0 : activeVersion.renders.length - 5
 
   return (
     <section>
-      <div className="cad-hero">
+      <div className="cad-hero" data-solo={thumbs.length === 0 ? "" : undefined}>
         <div
           className="cad-hero__main"
           role="button"
@@ -85,23 +88,26 @@ export function CadHeroGallery({
           )}
         </div>
 
-        <div className="cad-hero__thumbs">
-          {thumbs.map((render, i) => {
-            const idx = i + 1 // renders index, since we skipped the hero
-            return (
-              <button
-                key={idx}
-                type="button"
-                className="cad-hero__thumb"
-                data-n={render.label}
-                onClick={() => onOpenLightbox(idx)}
-                aria-label={`Open ${render.label} in viewer`}
-              >
-                <img src={render.imageUrl} alt={render.label} />
-              </button>
-            )
-          })}
-        </div>
+        {thumbs.length > 0 && (
+          <div className="cad-hero__thumbs" data-count={thumbs.length}>
+            {thumbs.map((render, i) => {
+              const idx = i + 1 // renders index, since we skipped the hero
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  className="cad-hero__thumb"
+                  data-n={render.label}
+                  data-more={more > 0 && i === thumbs.length - 1 ? `+${more} more` : undefined}
+                  onClick={() => onOpenLightbox(idx)}
+                  aria-label={`Open ${render.label} in viewer`}
+                >
+                  <img src={render.imageUrl} alt={render.label} />
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         <div className="cad-hero__meta">
           <div className="cad-hero__version">

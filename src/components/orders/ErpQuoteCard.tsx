@@ -27,6 +27,10 @@ export function ErpQuoteCard({ activeVersion, isOnLatest, latestVersionNumber }:
   const sentOn = activeVersion.deliveredAt.getTime() > 0
     ? activeVersion.deliveredAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null
+  // Dia-Co re-sent this version with a new quote: say so, so the customer knows the total changed
+  const updatedOn = activeVersion.erpQuoteUpdatedAt
+    ? activeVersion.erpQuoteUpdatedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null
 
   if (!quote) {
     return (
@@ -54,6 +58,7 @@ export function ErpQuoteCard({ activeVersion, isOnLatest, latestVersionNumber }:
         </span>
         <span className="quote-card__head-right">
           {!isOnLatest && <span className="h-tag">You&apos;re viewing a previous version</span>}
+          {isOnLatest && updatedOn && <span className="h-tag">Updated {updatedOn}</span>}
           <span className="quote-card__chev">{isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
         </span>
       </button>
@@ -108,6 +113,7 @@ export function ErpQuoteCard({ activeVersion, isOnLatest, latestVersionNumber }:
 
           <div className="meta-notes">
             {sentOn && <p style={{ margin: 0 }}>Sent with design {activeVersion.versionNumber} on {sentOn}.</p>}
+            {updatedOn && <p style={{ margin: sentOn ? "6px 0 0" : 0 }}>Dia-Co updated this quote on {updatedOn}. It replaces the one first sent with this design.</p>}
             {quote.disclaimer && <p style={{ margin: sentOn ? "6px 0 0" : 0 }}>{quote.disclaimer}</p>}
           </div>
         </div>

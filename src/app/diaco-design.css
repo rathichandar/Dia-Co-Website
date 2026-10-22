@@ -507,15 +507,35 @@
 }
 .diaco-design .cad-hero__main .hero-3d:hover { background: var(--dc-brown); }
 
+/* The thumbs fill the column beside the hero, which sets the height: `contain: size` keeps them from growing it.
+   An ERP design has any number of renders (Step 4a), so the grid follows the count: one fills the column, two
+   stack, a third spans the bottom row, four make the 2×2. */
 .diaco-design .cad-hero__thumbs {
-  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 1px;
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
   background: var(--dc-gray-200);
+  contain: size;
 }
+.diaco-design .cad-hero__thumbs[data-count="1"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.diaco-design .cad-hero__thumbs[data-count="2"] { grid-template-columns: minmax(0, 1fr); }
+.diaco-design .cad-hero__thumbs[data-count="3"] .cad-hero__thumb:last-child { grid-column: 1 / -1; }
+/* One render: the hero takes the whole card at the same height, and shows all of the image. */
+.diaco-design .cad-hero[data-solo] .cad-hero__main { grid-column: 1 / -1; aspect-ratio: 26/11; border-right: none; background-color: #fff; }
+.diaco-design .cad-hero[data-solo] .cad-hero__main img { object-fit: contain; }
 .diaco-design .cad-hero__thumb {
   background: #EFEAE2 center/cover no-repeat;
-  aspect-ratio: 1; position: relative;
+  position: relative; min-width: 0; min-height: 0;
   border: none; padding: 0; cursor: pointer;
   transition: opacity 160ms ease;
+}
+/* More than five renders: the last thumb says how many more the lightbox holds. */
+.diaco-design .cad-hero__thumb[data-more]::before {
+  content: attr(data-more);
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(26, 26, 26, 0.5); color: #fff;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1.2px;
 }
 .diaco-design .cad-hero__thumb img {
   width: 100%; height: 100%; object-fit: cover; display: block;
@@ -749,6 +769,100 @@
   background: #fff; border: 1px solid var(--dc-gray-300); padding: 18px 22px;
   font-family: var(--font-sans); font-size: 13px; line-height: 1.6; color: var(--fg-2);
 }
+/* Step 4b — the other requests and the answered ones, under the review card. With more than one card the rail can
+   outgrow the window, so it scrolls with the page instead of sticking (a sticky column would hide its last card). */
+.diaco-design .order-page__side.erp-req__side { position: static; }
+.diaco-design .erp-req {
+  background: #fff; border: 1px solid var(--dc-gray-300); padding: 18px 22px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.diaco-design .erp-req__eyebrow {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; color: var(--fg-3);
+  text-transform: uppercase; letter-spacing: 2px;
+}
+.diaco-design .erp-req__row { display: flex; flex-direction: column; gap: 6px; }
+.diaco-design .erp-req__row + .erp-req__row { border-top: 1px solid var(--dc-gray-200); padding-top: 14px; }
+.diaco-design .erp-req__head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.diaco-design .erp-req__name { font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--fg-1); }
+.diaco-design .erp-req__text,
+.diaco-design .erp-req__meta,
+.diaco-design .erp-req__foot { margin: 0; font-family: var(--font-sans); line-height: 1.55; }
+.diaco-design .erp-req__text { font-size: 13px; color: var(--fg-2); }
+.diaco-design .erp-req__meta,
+.diaco-design .erp-req__foot { font-size: 12px; color: var(--fg-3); }
+.diaco-design .erp-req__ask { align-self: flex-start; }
+.diaco-design .erp-req__said {
+  margin-top: 10px; background: #FAFAFA; border: 1px solid var(--dc-gray-200); padding: 8px 10px;
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.55; color: var(--fg-2); white-space: pre-wrap;
+}
+.diaco-design .erp-req__row .erp-req__said { margin-top: 0; }
+.diaco-design .erp-req__chip {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+  padding: 3px 7px; border-radius: 2px; white-space: nowrap;
+}
+.diaco-design .erp-req__chip--pending { background: #FBF1DC; color: #6B4E12; }
+.diaco-design .erp-req__chip--done { background: #E6F2EA; color: #1F5A35; }
+.diaco-design .erp-req__chip--declined { background: #F4E4E4; color: #8A2A2A; }
+/* A request button found the page behind the ERP and refreshed it. */
+.diaco-design .erp-req--behind { border-left: 3px solid #D4A94A; gap: 8px; }
+
+/* P1-09 — the invoice card on an invoiced ERP order */
+.diaco-design .erp-invoice {
+  background: #fff; border: 1px solid var(--dc-gray-300); padding: 16px 22px;
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+}
+.diaco-design .erp-invoice__main { flex: 1; min-width: 200px; }
+.diaco-design .erp-invoice__no { margin-top: 4px; font-family: var(--font-mono); font-size: 18px; color: var(--fg-1); }
+.diaco-design .erp-invoice__meta { margin-top: 2px; font-family: var(--font-sans); font-size: 13px; color: var(--fg-2); }
+.diaco-design .erp-invoice__total { display: flex; flex-direction: column; align-items: flex-end; font-family: var(--font-sans); font-size: 12px; color: var(--fg-3); }
+.diaco-design .erp-invoice__total strong { font-size: 18px; color: var(--fg-1); font-variant-numeric: tabular-nums; }
+
+/* P1-09 — THE INVOICE AS DIA-CO PRINTS IT: the ERP's PriceDoc on its .jb-page sheet (ERP part 74, shell.head.html),
+   rule for rule, so the Portal's PDF and the ERP's print read the same. On screen it sits on the page as a sheet;
+   printed, the page around it is left off (the invoice page's own print rules). */
+.diaco-design.inv-screen { min-height: 100vh; background: #F5F5F5; }
+.diaco-design .inv-bar {
+  max-width: 8.5in; margin: 16px auto; padding: 0 16px; box-sizing: content-box;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.diaco-design .inv-bar__hint { flex: 1; min-width: 200px; font-family: var(--font-sans); font-size: 12.5px; color: var(--fg-2); text-align: center; }
+.diaco-design .inv-scroll { overflow-x: auto; padding: 0 16px 32px; }
+.diaco-design .inv-page {
+  width: 8.5in; min-height: 11in; margin: 0 auto; padding: 0.3in; box-sizing: border-box;
+  background: #fff; color: #000; font-size: 11px; line-height: normal;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); border: 1px solid var(--dc-gray-200);
+}
+.diaco-design .inv-page table { border-collapse: collapse; }
+.diaco-design .inv-title { text-align: center; font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+.diaco-design .inv-head { width: 100%; margin-bottom: 10px; }
+.diaco-design .inv-head td { vertical-align: top; font-size: 12px; }
+.diaco-design .inv-head__logo { width: 110px; }
+.diaco-design .inv-head__logo img { width: 96px; }
+.diaco-design .inv-brand { font-size: 14px; font-weight: 800; color: #b8860b; }
+.diaco-design .inv-head__date { font-weight: 700; margin-top: 4px; }
+.diaco-design .inv-lines { width: 100%; }
+.diaco-design .inv-lines th,
+.diaco-design .inv-lines td { border: 1px solid #000; padding: 3px 6px; font-size: 12px; }
+.diaco-design .inv-lines th { background: #f0f0f0; text-align: left; }
+.diaco-design .inv-lines .num { text-align: right; }
+.diaco-design .inv-lines .inv-label td { background: #faf6ea; font-weight: 700; }
+.diaco-design .inv-lines .inv-sub td { text-align: right; font-weight: 700; background: #f7f9fb; }
+.diaco-design .inv-lines .inv-sub td:last-child { font-weight: 800; }
+.diaco-design .inv-lines .inv-total td { text-align: right; font-weight: 800; }
+.diaco-design .inv-lines .inv-less td,
+.diaco-design .inv-lines .inv-rjo {
+  color: #c0392b; font-weight: 700; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.diaco-design .inv-lines .inv-less td { text-align: right; }
+.diaco-design .inv-lines .inv-rjo--process { text-align: right; }
+.diaco-design .inv-added {
+  margin-left: 6px; border: 1px solid #1a4fa0; color: #1a4fa0; border-radius: 8px; padding: 0 5px;
+  font-size: 8px; font-weight: 800; letter-spacing: 0.3px;
+}
+.diaco-design .inv-foot { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 12px; }
+.diaco-design .inv-foot__thanks { font-size: 11px; max-width: 520px; color: #333; }
+.diaco-design .inv-foot__seal { width: 118px; height: 118px; }
 .diaco-design .cad-hero__unavailable {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   padding: 24px; text-align: center;

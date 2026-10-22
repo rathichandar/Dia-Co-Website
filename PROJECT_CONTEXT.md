@@ -1,6 +1,6 @@
 # Diaco Portal — Project Context
 
-**Last updated:** October 20, 2026 (ERP integration Step 4a, design review, built but not yet applied; Steps 1a, 1b, 2 and 3 on ERP staging)
+**Last updated:** October 21, 2026 (ERP integration Step 4b, customer requests, built but not yet applied; Step 4a verified on ERP staging and its four bugs fixed; Steps 1a, 1b, 2 and 3 on ERP staging)
 **Maintained by:** Claude, at Arpit's direction. Replaced after each work session.
 **Status:**
 - **Done:** Phase 2C Sub-sessions 1-4 are live in prod (https://diaco-portal.vercel.app). Sub-session 5 (Customer Admin `/team` + invitations) is built in code, and its migrations are applied to the portal database (verified 2026-10-15: `/team` loads members and pending invitations). Whether SS5 is deployed to prod is unverified.
@@ -9,8 +9,10 @@
   - **Steps 1–2 work on ERP staging:** identity links and invites, and a linked customer's orders read from the ERP.
   - **Step 3 works end to end on staging (2026-10-19).** Orders are sent to the ERP, where AMs see a shared Portal orders panel and Create or Decline each one. A browser run verified both paths, and AB-1310 is the test order.
   - **Step 1b works end to end on staging (2026-10-20).** ERP staff can see a customer's Portal logins on Customer Master, invite a Customer Admin, send an invitation again, and revoke. A browser run did all three through a tunnel to the Portal. It's ERP code only; the Portal side came with Step 1a.
-  - **Step 4a (design review) is built (2026-10-20), not yet applied or deployed.** When an AM sends a design to Client Review, the customer sees it on the order page: the renders, the 3D model, earlier versions, and the quote as the printed quote reads it. Switching it on needs the new ERP SQL, a `portal-gateway` redeploy and the new ERP build.
-- **Next:** switch on and test Step 4a, then Step 4b (customer requests: approve, request changes, cancel, rush).
+  - **Step 4a (design review) works end to end on staging (2026-10-20).** When an AM sends a design to Client Review, the customer sees it on the order page: the renders, the 3D model, earlier versions, and the quote as the printed quote reads it. A browser run found four bugs; all are fixed (2026-10-21, `STEP_4A_BUGS.md`) but not yet seen live.
+  - **Step 4b (customer requests) is built (2026-10-21), not yet applied or deployed.** On an ERP order the customer can approve the design (which also accepts its quote), request changes, ask for Priority Rush or ask to cancel. Each becomes a request an AM acts on in the ERP, on the order and in a queue on Orders; the AM's own buttons close what they answer. Switching it on needs the new ERP SQL, a `portal-gateway` redeploy and the new ERP build.
+  - **P1-09 (the invoice PDF) is built (2026-10-22), and on ERP staging the same day; not yet seen on an invoiced order.** An invoiced ERP order shows an Invoice card, and `/orders/[orderId]/invoice` draws the ERP's own invoice paper. "Download PDF" opens the print dialog, and the PDF comes out as one Letter page. Only logins with "View invoices" see it. Its SQL is applied and `portal-gateway` redeployed. Next: invoice AB-1310 in the ERP and open it on the Portal.
+- **Next:** switch on and test Step 4b; see the Step 4a fixes live; commit both repos. Arpit to confirm when a customer may ask to cancel (his spec §6 Q2).
 
 > **⚠ DIRECTION CHANGE: read before planning anything.** The "internal software" this doc and
 > `EXISTING_SYSTEMS_REFERENCE.md` describe (locally hosted, old dev team) was **replaced on

@@ -1,17 +1,24 @@
 # Step 4a (design review): bugs from the browser run
 
 **Found:** 2026-10-20, by a browser agent that drove the ERP (staging) and the Portal (local) on test order **AB-1310**.
-**Status:** all four are open. None is fixed.
+**Status (2026-10-21):**
+- **Bugs 1, 2 and 4 are fixed in the Portal, uncommitted.** Type check and lint pass. Bug 1 was checked in a headless harness over the real CSS, at 1–6 renders and two widths. **None has been seen live on AB-1310 yet.**
+- **Bug 3 (ERP) is fixed too** (2026-10-21, owner: give the number back), uncommitted. `portal.test.js` holds it with a check proven to fail without the fix; the ERP gate is green. **Not seen live yet.**
+
+**To do later:**
+1. **See all four fixes live on AB-1310** (steps under each bug's "Check"). Bug 3 first: the ERP's note should then say v2.
+2. **Commit the fixes** in both repos once they've been seen live.
+3. **The untested paths** under "Not covered by the run".
 **Context:** `ERP_INTEGRATION_CONTRACT.md` §0 (Step 4a) and §8. Step 4a otherwise passed end to end.
 
 | # | Repo | What the customer or AM sees | Size |
 |---|---|---|---|
 | 1 | Portal | Renders are hidden when an order has fewer than 5 | CSS + a little TSX |
 | 2 | Portal | The stage ribbon says "First CAD coming" while a design is on screen | A few lines |
-| 3 | ERP | After undoing a send, the next version is numbered v3 when the customer saw only v1 | Small, but **needs an owner ruling first** |
+| 3 | ERP | After undoing a send, the next version is numbered v3 when the customer saw only v1 | Small; ruled (give it back) and fixed 2026-10-21 |
 | 4 | Portal | The header says "review CAD v1 and approve", but there is no Approve until Step 4b | One line |
 
-Suggested order: 2, 4 and 1 in the Portal (one session), then 3 in the ERP once it is ruled on.
+All four were fixed on 2026-10-21 (bug 4's wording then changed again with Step 4b, which brought Approve).
 
 ---
 
@@ -36,6 +43,16 @@ Suggested order: 2, 4 and 1 in the Portal (one session), then 3 in the ERP once 
 ---
 
 ## Bug 1: the gallery hides renders when there are fewer than 5 (Portal)
+
+> **Fixed 2026-10-21.**
+> - **What changed:**
+>   - `.cad-hero__thumbs` is now a fixed 2×2 grid with `minmax(0, 1fr)` tracks and `contain: size`, so it can't grow the card.
+>   - The thumbnails fill their cells; `aspect-ratio: 1` is gone.
+>   - `data-count` lays out 1 thumbnail (fills the column), 2 (stacked) or 3 (the third spans the bottom row).
+>   - A single render sets `data-solo`: the hero spans the card at the same height, with `object-fit: contain`.
+>   - With more than 5 renders, the last thumbnail shows "+N more".
+> - **Harness result:** before the fix, thumbnail 3 of 3 was 0% visible, and with 4–6 renders the right-hand column was 82% visible. After it, every thumbnail is 100% visible at 760px and 600px for 1–6 renders, and the hero height is unchanged.
+> - **The harness:** `make-harness.mjs` in the scratchpad's `gallery\` folder (path under Evidence).
 
 **What happens.**
 - AB-1310's v1 has 3 renders: one hero and two thumbnails.
@@ -74,6 +91,13 @@ The simplest route is a class or `data-count` on `.cad-hero__thumbs` with explic
 
 ## Bug 2: "First CAD coming" while a design is on screen (Portal)
 
+> **Fixed 2026-10-21.**
+> - **What changed:** in `fetchErpOrderPage`, once versions exist, `awaiting_first_cad` becomes `awaiting_modifications`.
+> - **What the order page then shows at Admin Review (v2 and later):**
+>   - the ribbon: "Working on your modifications";
+>   - the header pill: "Redesigning", where before it showed none.
+> - **The `/orders` list still says "Design in progress"** there, which is still true.
+
 **What happens.**
 - AB-1310 is at ERP Admin Review with v1 already shown to the customer.
 - The Portal's stage ribbon reads **"Designing · First CAD coming"**.
@@ -97,6 +121,11 @@ The simplest route is a class or `data-count` on `.cad-hero__thumbs` with explic
 ---
 
 ## Bug 3: undoing a Send to Client Review doesn't give the version number back (ERP)
+
+> **Fixed 2026-10-21** (owner: give the number back), uncommitted.
+> - **What changed:** `undoMove` (`src/app/78-ui-tools.jsx`). When the move undone went from Admin Review to Client Review, it lowers `clientV` by one and clears the `cv` stamp that send left on the archived version. This also covers sends made before Step 4a, whose history lines carry no `portalReview`.
+> - **Held by:** a `portal.test.js` section H check, proven to fail without the fix. The ERP gate is green.
+> - **AB-1310 still has `clientV` = 2 from the earlier undo.** The fix only applies to undos from now on, so the ERP's next send there is still numbered **v3**. To check the fix, send and undo once more: the note should then say the same number before and after.
 
 **What happens.**
 - On AB-1310, v1 was sent, then v2, then the v2 send was undone in Transactions.
@@ -128,11 +157,16 @@ Undo is only offered on the last move, so no later send can depend on that numbe
 - `node build.js --accept` per the ERP's CLAUDE.md;
 - reload the ERP tab.
 
-**Check.** On AB-1310 the note should read "…shows the customer **v2**…". Then send, check the Portal shows "v2 (latest)" (not v3), and undo again to leave it as found.
+**Check.** On any test order at Admin Review, note the version the "Portal:" line names (vN). Send to Client Review, then undo it in Transactions: the line must name vN again, not vN+1. (AB-1310 keeps the raised number from the run before the fix, so its next send is v3 either way.)
 
 ---
 
 ## Bug 4: the header asks the customer to "approve" with no Approve button (Portal)
+
+> **Fixed 2026-10-21.**
+> - **ERP orders:** the header now reads "review CAD v1" (`order.source === "erp"`).
+> - **Phase 1 orders:** they keep "…and approve".
+> - **Step 4b:** put "and approve" back for ERP orders when Approve ships.
 
 **What happens.**
 - At Client Review the order header reads "NEEDS REVIEW · Action: **review CAD v1 and approve**".
