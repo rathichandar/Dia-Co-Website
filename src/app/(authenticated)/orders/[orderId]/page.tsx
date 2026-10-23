@@ -23,6 +23,7 @@ import { fetchOrder, fetchCustomerForOrder } from "@/lib/orders/fetchOrder"
 import { fetchErpOrderPage } from "@/lib/erp/erpOrders"
 import { fetchErpOrderInvoice, viewerCanSeeInvoices } from "@/lib/erp/erpInvoice"
 import { ErpInvoiceCard } from "@/components/orders/ErpInvoiceCard"
+import { ErpShipTo } from "@/components/orders/ErpShipTo"
 import type { AccountManager, Customer, Order } from "@/types/order"
 import { notFound } from "next/navigation"
 // diaco-design.css is loaded by src/app/(authenticated)/layout.tsx
@@ -70,7 +71,8 @@ export default async function OrderDetailPage({
     notFound()
   }
   const { order, customer, am } = page
-  // An ERP order carries no ship-to, insurance or attachments the Portal can show yet.
+  // An ERP order shows its ship-to (ErpShipTo, when it ships somewhere other than the customer's own address); it carries
+  // no account block, insurance or attachments the Portal can show yet.
   const fromErp = order.source === "erp"
   // P1-09 — the invoice an ERP order is on, once it is invoiced (the ERP shows it as shipping), for a login with
   // "View invoices". Asked only then, so other orders and other logins cost no gateway call.
@@ -94,7 +96,7 @@ export default async function OrderDetailPage({
         <div className="flex flex-col gap-3 mt-5">
           {invoice && <ErpInvoiceCard orderId={order.poNumber} invoice={invoice} />}
           <FullSpecifications order={order} />
-          {!fromErp && <CustomerAndDropShip order={order} customer={customer} />}
+          {fromErp ? <ErpShipTo order={order} /> : <CustomerAndDropShip order={order} customer={customer} />}
           {!fromErp && <AllAttachments order={order} />}
         </div>
       </main>

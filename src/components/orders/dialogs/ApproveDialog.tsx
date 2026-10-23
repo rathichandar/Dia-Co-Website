@@ -193,7 +193,8 @@ function SummaryRow({
 }
 
 function finishPointLabel(fp: Order["finishPoint"]): string {
-  const map: Record<Order["finishPoint"], string> = {
+  if (!fp) return "—"
+  const map: Record<NonNullable<Order["finishPoint"]>, string> = {
     file: "File",
     wax: "Wax",
     raw_casting: "Raw casting",

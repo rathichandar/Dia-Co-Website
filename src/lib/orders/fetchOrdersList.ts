@@ -34,6 +34,8 @@ export interface OrderListItem {
   submittedByName: string | null
   amName: string | null
   updatedAt: Date
+  // ERP orders (2026-10-23): when Dia-Co changed what the customer sent, the time of each change (oldest first)
+  erpChangeTimes?: string[]
 }
 
 export interface OrderListResult {

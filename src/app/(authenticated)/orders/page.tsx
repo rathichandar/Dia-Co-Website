@@ -19,6 +19,7 @@ import { fetchDrafts, fetchDraftsCount } from '@/lib/orders/fetchDrafts'
 import { loadSubmissionState } from '@/lib/erp/erpSubmissions'
 import { SubmittedBanner } from '@/components/orders/SubmittedBanner'
 import { DraftsTable, type DeclinedDraftItem } from '@/components/orders/DraftsTable'
+import { ErpChangesChip } from '@/components/orders/ErpChangesChip'
 // diaco-design.css is loaded by src/app/(authenticated)/layout.tsx
 
 export const metadata: Metadata = {
@@ -117,6 +118,10 @@ function OrderCardBody({ item }: { item: OrderListItem }) {
           {item.endCustomerName ?? item.productLabel ?? 'Untitled'}
         </h3>
         <div className="order-card__spec">{item.subStatusText}</div>
+        {/* An ERP order Dia-Co changed of what the customer sent (2026-10-23): how many changes, and how many new. */}
+        {item.orderNumber && item.erpChangeTimes?.length ? (
+          <ErpChangesChip orderNo={item.orderNumber} times={item.erpChangeTimes} />
+        ) : null}
         <div className="order-card__meta">
           {item.clientPo ? <span className="po">{item.clientPo}</span> : null}
           {item.submittedByName ? (

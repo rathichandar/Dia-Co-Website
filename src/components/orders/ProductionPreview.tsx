@@ -20,8 +20,10 @@ interface ProductionPreviewProps {
 }
 
 export function ProductionPreview({ order, isRushOn }: ProductionPreviewProps) {
-  const steps = getProductionSteps(order.finishPoint, isRushOn)
-  const shipRange = computeShipDateRange(order.finishPoint, isRushOn)
+  // Only the Portal's own orders show this preview, and they always have a finish point (orders.finish_point is NOT NULL).
+  const finishPoint = order.finishPoint ?? "finished_piece"
+  const steps = getProductionSteps(finishPoint, isRushOn)
+  const shipRange = computeShipDateRange(finishPoint, isRushOn)
 
   return (
     <aside className="side-summary">

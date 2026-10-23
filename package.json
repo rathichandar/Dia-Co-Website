@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "seed:dg-10001": "tsx scripts/seed-dg-10001.ts",
-    "check:erp-signing": "tsx scripts/check-erp-signing.ts"
+    "check:erp-signing": "tsx scripts/check-erp-signing.ts",
+    "check:erp-changes": "tsx scripts/check-erp-changes.tsx",
+    "check:erp-fields": "tsx scripts/check-erp-fields.tsx"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",

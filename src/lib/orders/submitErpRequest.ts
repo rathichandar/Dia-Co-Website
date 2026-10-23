@@ -4,8 +4,10 @@
 // submitErpRequest Server Action.
 //
 // ERP integration Step 4b (ERP_INTEGRATION_CONTRACT.md §9): the customer asks for something on an order read from
-// the ERP -- approve the design, changes, Priority Rush, cancel. It changes NOTHING on the order: the ERP files it for
-// an AM, who acts with the ERP's own buttons and marks it done or declined, with a note the customer reads.
+// the ERP -- approve the design, changes, Priority Rush, cancel, or (2026-10-23) a question about a change Dia-Co made.
+// It changes NOTHING on the order: the ERP files it for an AM, who acts with the ERP's own buttons and marks it done or
+// declined, with a note the customer reads (a question is answered by marking it done with the answer as the note).
+// A question can be asked on any order not cancelled, one open at a time; a second while one is open is refused.
 //   - Who is asking, and for which customer, the ERP decides from the signed-in token (portal-gateway).
 //   - An approval names the showing on screen (reviewAt); its version and quote total are read from the ERP's own
 //     copy of that showing, and a newer showing sent meanwhile refuses it (PORTAL_STALE).
@@ -24,7 +26,7 @@ export interface SubmitErpRequestResult {
   stale?: boolean
 }
 
-const KINDS: ErpRequestKind[] = ["approve", "modify", "cancel", "rush"]
+const KINDS: ErpRequestKind[] = ["approve", "modify", "cancel", "rush", "question"]
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function submitErpRequest(args: {
@@ -40,6 +42,9 @@ export async function submitErpRequest(args: {
   }
   if (args.kind === "modify" && !text) {
     return { ok: false, error: "Say what should change." }
+  }
+  if (args.kind === "question" && !text) {
+    return { ok: false, error: "Say what you'd like to ask." }
   }
   if (text.length > 2000) {
     return { ok: false, error: "A request is at most 2,000 characters." }

@@ -19,6 +19,7 @@ import { cache } from 'react'
 import { callGateway } from './gateway'
 import { loadSubmissionState, type SentOrder } from './erpSubmissions'
 import { computeStatusPill } from '@/lib/orders/statusPill'
+import { readErpChanges, readErpDetails } from '@/lib/orders/erpChanges'
 import type { OrderListItem, OrderListResult, OrdersTab, StageFilter } from '@/lib/orders/fetchOrdersList'
 import type {
   AccountManager,
@@ -29,6 +30,7 @@ import type {
   DesigningSubState,
   ErpQuote,
   ErpRequest,
+  ErpShipTo,
   FinishPoint,
   MetalColorId,
   MetalKaratId,
@@ -36,6 +38,7 @@ import type {
   Order,
   OrderId,
   ProductType,
+  SizeUnit,
   Stage,
   StageDetail,
 } from '@/types/order'
@@ -64,6 +67,50 @@ export interface ErpOrder {
   metals: string[]
   customer_name: string | null
   updated_at: string | null
+  // 2026-10-23: what Dia-Co changed of what the customer sent (oldest first, at most the 50 latest), and the order's
+  // specification in words. Absent from an older ERP: no changes, and the page shows what it showed before.
+  changes?: ErpChangeRow[] | null
+  details?: ErpDetailsRow | null
+  // 2026-10-23, the field audit (db/2026-10-23-portal-order-fields.sql). Absent from an older ERP: the page shows what it
+  // showed before. The order is on Priority Rush; a design was sent to the Portal; where it ships when that is not the
+  // customer's own address; and what the customer wrote (theirs, an AM's correction included).
+  priority_rush?: boolean
+  design_sent?: boolean
+  ship_to?: ErpShipToRow | null
+  description?: string | null
+  notes?: string | null
+}
+
+// The ship-to exactly as the ERP sends it (_portal_ship_to's keys).
+interface ErpShipToRow {
+  method?: string | null
+  recipient?: string | null
+  line1?: string | null
+  line2?: string | null
+  city?: string | null
+  state?: string | null
+  postal?: string | null
+  country?: string | null
+  phone?: string | null
+}
+
+// One change exactly as the ERP sends it (read and checked by readErpChanges).
+interface ErpChangeRow {
+  field?: string | null
+  what?: string | null
+  was?: string | null
+  now?: string | null
+  note?: string | null
+  at?: string | null
+  at_creation?: boolean | null
+}
+
+interface ErpDetailsRow {
+  metals?: string[] | null
+  center_stone?: string | null
+  more_centers?: string[] | null
+  accents?: string | null
+  engraving?: string | null
 }
 
 // Codes that mean "this login has no ERP orders to show" -> the Portal's own tables answer, quietly.
@@ -85,6 +132,13 @@ function startOfToday(): Date {
   const t = new Date()
   t.setHours(0, 0, 0, 0)
   return t
+}
+
+// The ERP says "awaiting review" for an order at Client Review. When no design of it ever reached the Portal (an imported
+// order shown to its customer before Step 4a) there is nothing here to review, so the page and the list say the design is
+// being made -- as the order page already did -- rather than "review needed". An older ERP sends no design_sent: as before.
+function subStatusOf(o: ErpOrder): ErpOrder['sub_status'] {
+  return o.sub_status === 'awaiting_review' && o.design_sent === false ? 'awaiting_design' : o.sub_status
 }
 
 function stageBadge(o: ErpOrder): string | null {
@@ -109,7 +163,7 @@ const SHORT_DATE = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'nume
 function statusText(o: ErpOrder): string {
   switch (o.status) {
     case 'designing':
-      return o.sub_status === 'awaiting_review'
+      return subStatusOf(o) === 'awaiting_review'
         ? 'CAD ready — review needed'
         : o.sub_status === 'redesigning'
           ? 'Working on your changes'
@@ -139,6 +193,7 @@ function productLabel(o: ErpOrder): string | null {
 function toListItem(o: ErpOrder, today: Date): OrderListItem {
   // A shipped order is never late: it has no ship date still to meet.
   const expectedShipDate = o.shipped ? null : day(o.customer_ship_date)
+  const changes = readErpChanges(o.changes)
   return {
     orderId: o.order_no,
     orderNumber: o.order_no,
@@ -146,9 +201,9 @@ function toListItem(o: ErpOrder, today: Date): OrderListItem {
     productLabel: productLabel(o),
     clientPo: o.ref_po,
     status: o.status,
-    subStatus: o.sub_status,
+    subStatus: subStatusOf(o),
     stageBadgeName: stageBadge(o),
-    statusPill: computeStatusPill(o.status, o.sub_status, expectedShipDate, today),
+    statusPill: computeStatusPill(o.status, subStatusOf(o), expectedShipDate, today),
     subStatusText: statusText(o),
     heroImageUrl: null, // CAD renders arrive in Step 4
     price: null,
@@ -157,6 +212,7 @@ function toListItem(o: ErpOrder, today: Date): OrderListItem {
     submittedByName: null,
     amName: null,
     updatedAt: o.updated_at ? new Date(o.updated_at) : new Date(0),
+    erpChangeTimes: changes.length ? changes.map((c) => c.at) : undefined,
   }
 }
 
@@ -305,7 +361,7 @@ function stageDetailOf(o: ErpOrder): StageDetail {
     case 'designing':
       return {
         kind: 'designing',
-        subState: designingSubState(o.sub_status),
+        subState: designingSubState(subStatusOf(o)),
         currentCadVersion: '', // the newest design sent, filled in by fetchErpOrderPage (Step 4a)
         actionNeeded: null, // approving in the Portal arrives in Step 4b
         actionDeadline: null,
@@ -326,9 +382,39 @@ function stageDetailOf(o: ErpOrder): StageDetail {
   }
 }
 
+// A ring's size is a US size; a bracelet's or necklace's, a length in inches (the ERP's New Order takes a number for
+// these three only).
+function sizeUnitOf(type: ProductType): SizeUnit {
+  return type === 'bracelet' || type === 'necklace' ? 'in' : 'US'
+}
+
+function words(s: string | null | undefined): string | null {
+  const t = typeof s === 'string' ? s.trim() : ''
+  return t ? t : null
+}
+
+// undefined: an older ERP sent no ship-to; null: it ships to the customer's own address.
+function readShipTo(s: ErpShipToRow | null | undefined): ErpShipTo | null | undefined {
+  if (s === undefined) return undefined
+  if (!s || typeof s !== 'object') return null
+  const method = s.method === 'drop_ship' || s.method === 'different_address' || s.method === 'standard' ? s.method : null
+  return {
+    method,
+    recipient: words(s.recipient),
+    line1: words(s.line1),
+    line2: words(s.line2),
+    city: words(s.city),
+    state: words(s.state),
+    postal: words(s.postal),
+    country: words(s.country),
+    phone: words(s.phone),
+  }
+}
+
 function toOrder(o: ErpOrder): Order {
   const shipDate = o.shipped ? null : day(o.customer_ship_date)
   const sizeNum = o.size !== null ? Number(o.size) : NaN
+  const type = productType(o.style)
   return {
     id: brand<OrderId>(o.order_no),
     poNumber: o.order_no,
@@ -337,20 +423,23 @@ function toOrder(o: ErpOrder): Order {
     softwareOrderId: o.order_no,
     personalPo: o.ref_po,
     customerId: brand<CustomerId>(''),
-    productType: productType(o.style),
-    customStyle: productType(o.style) === 'other' ? o.style : null,
-    size: Number.isFinite(sizeNum) ? { value: sizeNum, unit: 'US' } : null,
+    productType: type,
+    customStyle: type === 'other' ? o.style : null,
+    size: Number.isFinite(sizeNum) ? { value: sizeNum, unit: sizeUnitOf(type) } : null,
     quantity: o.quantity,
-    finishPoint: o.finish_point ?? 'finished_piece',
+    // An order Dia-Co has not given a finish point (an imported one) says so: never a guess.
+    finishPoint: o.finish_point ?? null,
     metals: o.metals.map(metalSpec),
     stones: { hasCenterStone: false, centerStone: null, accentStones: [] },
     engraving: null,
-    description: '',
+    description: words(o.description) ?? '',
+    customerNotes: words(o.notes),
     customerAttachments: [],
     currentStage: stageOf(o),
     stageDetail: stageDetailOf(o),
     cadVersions: [], // Step 4a: filled from order.design by fetchErpOrderPage
-    priorityRush: { eligibility: 'not_requested', fee: 0, requestedAt: null, reviewedAt: null, reviewedBy: null, denialReason: null },
+    // On Priority Rush in the ERP (its roadmap), however it got there: the customer's request or the AM's own choice.
+    priorityRush: { eligibility: o.priority_rush ? 'approved' : 'not_requested', fee: 0, requestedAt: null, reviewedAt: null, reviewedBy: null, denialReason: null },
     submittedAt: day(o.ordered_on) ?? new Date(0),
     lastUpdatedAt: o.updated_at ? new Date(o.updated_at) : new Date(0),
     expectedShipDate: shipDate ? { start: shipDate, end: shipDate } : null,
@@ -358,6 +447,9 @@ function toOrder(o: ErpOrder): Order {
     history: [],
     source: 'erp',
     portalStatus: o.status,
+    erpChanges: readErpChanges(o.changes),
+    erpDetails: readErpDetails(o.details),
+    erpShipTo: readShipTo(o.ship_to),
   }
 }
 
@@ -496,10 +588,12 @@ export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpO
     return null
   }
   const o = res.data.order
+  // An order this customer sent: who sent it ("Your description" names them) and their own end customer.
+  const mine = (await loadSubmissionState()).converted.get(o.order_no)
   const customer: Customer = {
     id: brand<CustomerId>(''),
     companyName: o.customer_name ?? '',
-    contactName: '',
+    contactName: mine?.submittedByName ?? '',
     email: '',
     phone: '',
     address: { line1: '', city: '', state: '', zip: '', country: '' },
@@ -522,7 +616,6 @@ export const fetchErpOrderPage = cache(async (orderNumber: string): Promise<ErpO
   order.erpRequests = requests
   // The ERP's end customer first (Dia-Co may have typed or corrected it); an order this customer sent falls back to
   // their own wording.
-  const mine = (await loadSubmissionState()).converted.get(o.order_no)
   if (!order.poEndCustomerName && mine?.endCustomerName) order.poEndCustomerName = mine.endCustomerName
   return { kind: 'found', order, customer, am }
 })

@@ -20,7 +20,12 @@ changing anything on either side.
 
 ---
 
-## 0. Build status (updated 2026-10-22)
+## 0. Build status (updated 2026-10-23)
+
+**The field audit (2026-10-23) is BUILT; `db/2026-10-23-portal-order-fields.sql` is NOT applied, and nothing is committed.** Details are in §7 under "The fields the customer's page was missing".
+- **ERP:** the SQL file, proven in PGlite (39 probes on the real chain, 11 of 11 breaks caught); `portal.test.js` P; the ERP gate is green at 968.
+- **Portal:** `erpOrders.ts`, `types/order.ts`, `KeySpecs`, `FullSpecifications`, `YourDescription`, the new `ErpShipTo`, `OrderHeader` (Rush badge), `ErpReviewRail`; `npm run check:erp-fields` (18) and `check:erp-changes` (55) pass.
+- **To switch it on:** apply the file on ERP staging, then V1–V3. No gateway redeploy is needed.
 
 **P1-09 (the invoice on the Portal) is BUILT (2026-10-22). The SQL is applied on ERP staging and `portal-gateway` is redeployed with `order.invoice`; it is not yet seen on an invoiced order, and nothing is committed.**
 - **The idea:** the ERP makes no PDF files; every paper is HTML its browser prints, and "Save as PDF" is the print dialog's. So the Portal draws the ERP's own invoice paper (`PriceDoc`, part 74) and prints it the same way. Owner rulings 2026-10-22: it prints as the ERP's paper prints, discounts included; only logins with "View invoices" (`user_profiles.can_view_invoices`) see it.
@@ -399,7 +404,7 @@ tables.
 | `order.get` | `portal_order_get` | `{order_no \| submission_id}` → `OrderDetail` | |
 | `order.design` | `portal_order_design` | `{order_no}` → `{order_no, renders_unavailable, versions: [{v, at, renders:[signed url], model_url, quote}]}`, oldest first | Every design sent for Client Review (§8); none before the first |
 | `order.invoice` | `portal_order_invoice` | `{order_no}` → `{order_no, invoice: null \| {invoice_no, date, due, company, groups: [{order_no, style_no, ref_po, personal_po, label, lines: [{dept, process, pc, wt, rate, qty, amount, rjo, added}], sub_total, discounts: [{doc_no, amount}], after_discount}], discounts, after_discount, shipping, total}}` | The invoice the order is on, as the ERP's paper prints it (P1-09); null until invoiced. The Portal shows it only to a login with "View invoices". Never inputs, overridden rates, who issued it, payments or balances |
-| `request.submit` | `portal_request_submit` | `{order_no, kind: approve\|modify\|cancel\|rush, text, against_v?}` → `{request_id, status:"pending"}` | Never changes order state |
+| `request.submit` | `portal_request_submit` | `{order_no, kind: approve\|modify\|cancel\|rush\|question, text, against_v?}` → `{request_id, status:"pending"}` | Never changes order state. `question` (2026-10-23): a question about a change Dia-Co made; text required (≤ 2,000), any order not cancelled, one open per order (a second → 409); answered by marking it done with a note |
 | `requests.list` | `portal_requests_list` | `{order_no?}` → `[Request]` | |
 | `link.confirm` | `portal_link_confirm` | `{invite_ref}` → `{customer_code, role}` | Called once, when an invite is accepted (§9) |
 
@@ -424,6 +429,25 @@ tables.
 
 `OrderDetail` adds `quantity, size, finished_product, metals:[label], submitted_at, approved_at,
 shipped_at` and the customer's own submission when there is one.
+
+**What Dia-Co changed (2026-10-23).** `order.get` and `orders.list` (one ERP function) also carry `changes`: oldest
+first, at most the 50 latest, each `{field, what, was, now, note, at, at_creation}` (`field` one of reference,
+end_customer, quantity, product_type, size, finish_point, metal, center_stone, more_centers, accents, engraving,
+description, shipping; `what` the label in Portal words; `was` / `now` strings or null; `note` Dia-Co's note to the
+customer; `at` ISO; `at_creation` true when changed while the order was created). Never who at Dia-Co changed it. And
+`details`: `{metals: [string], center_stone, more_centers: [string], accents, engraving}`, the current values in words.
+An older ERP omits both: the Portal then shows no changes and what it showed before. Portal side: the strip under the
+header, the "Changed by Dia-Co" card (`ErpChangesCard`), the marked tiles and spec rows, the list chip; "New" is
+per browser (`src/lib/orders/changesSeen.ts`).
+
+**The fields the customer's page was missing (2026-10-23, `db/2026-10-23-portal-order-fields.sql`).** Both reads also carry:
+- `priority_rush` — the order is on Priority Rush (its roadmap), however it got there. The page shows a badge and stops offering "Ask for Priority Rush".
+- `design_sent` — at least one design reached the Portal. An order at Client Review without one (an imported order shown before Step 4a) reads "Design in progress", not "review needed".
+- `ship_to` — `{method: drop_ship|different_address|standard|null, recipient, line1, line2, city, state, postal, country, phone}` or null; the order's shipTo now, an AM's correction included. The page shows it as "Drop ship" / "Ship to" (`ErpShipTo`).
+- `description`, `notes` — what the customer wrote (customerBrief), shown back as "Your description" and "Your notes for Dia-Co". Dia-Co's CAD / Mfg Instructions never leave.
+- An order made before customerBrief and engraving were fields (2026-10-23) falls back to what the customer sent, from the receipt — display only.
+
+Owner rulings the same day: Dia-Co's cancel reason stays off; the AM's name and the Personal PO stay off (the Step 2 allowlist, D6). Words: "Lab-grown EF VVS" (one spelling, colour and clarity kept); accents with no stone named read "Supplied by you" / "Supplied by Dia-Co". The Portal also stops guessing: no finish point is "—" (it read "Finished piece"), a bracelet or necklace length reads "7.5 in", and the Metal tile names every metal.
 
 **Never sent to the Portal:**
 - `party`, `designer` / `previousDesigner` / `points`

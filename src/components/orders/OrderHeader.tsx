@@ -2,13 +2,16 @@
 // OrderHeader
 // Editorial header — uniform brown uppercase breadcrumb, Playfair
 // title with order number in mono + end-customer in display, inline
-// status pill matching the orders list system.
+// status pill matching the orders list system. An ERP order Dia-Co
+// changed (2026-10-23) says so under the sub line, with a link to the
+// "Changed by Dia-Co" card; one on Priority Rush carries its badge.
 // ============================================================
 
 import Link from "next/link"
 import { ArrowLeft, MessageCircle, MoreHorizontal, Share2 } from "lucide-react"
 import type { Order } from "@/types/order"
 import { statusPillForOrder, type StatusPill } from "@/lib/orders/statusPill"
+import { ErpChangesStrip } from "./ErpChangesStrip"
 
 interface OrderHeaderProps {
   order: Order
@@ -50,6 +53,12 @@ export function OrderHeader({ order, amName }: OrderHeaderProps) {
             <span className="order-head__name">{order.poEndCustomerName}</span>
           )}
           {pill && <StatusPillBadge pill={pill} />}
+          {order.source === "erp" && order.priorityRush.eligibility === "approved" && (
+            <span className="badge badge--rush">
+              <span className="dot" />
+              Priority Rush
+            </span>
+          )}
         </h1>
 
         <div className="order-head__sub">
@@ -69,6 +78,9 @@ export function OrderHeader({ order, amName }: OrderHeaderProps) {
             </>
           )}
         </div>
+        {order.source === "erp" && order.erpChanges && order.erpChanges.length > 0 && (
+          <ErpChangesStrip changes={order.erpChanges} />
+        )}
       </div>
 
       {/* Share, Message and More do nothing yet (messaging is a later step), so an ERP order leaves them out:

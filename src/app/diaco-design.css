@@ -205,6 +205,10 @@
 .diaco-design .badge--received      { background: #EFE4D2; color: #5C4A30; }
 .diaco-design .badge--received .dot { background: #8B7355; }
 
+/* On Priority Rush in the ERP (2026-10-23): the house gold, beside the status pill. */
+.diaco-design .badge--rush      { background: #FBF1DC; color: #7A5A12; }
+.diaco-design .badge--rush .dot { background: #D4A94A; }
+
 .diaco-design .badge .dot { width: 5px; height: 5px; border-radius: 50%; }
 
 /* ============================================================
@@ -633,6 +637,13 @@
   font-family: var(--font-sans); font-size: 12px; color: var(--fg-3);
   font-style: italic; margin-top: 14px;
 }
+/* The customer's own words keep their line breaks; the notes sit under the description. */
+.diaco-design .desc-block p.desc-block__text { white-space: pre-wrap; }
+.diaco-design .desc-block .eyebrow.desc-block__next { margin-top: 18px; }
+.diaco-design .desc-block .eyebrow .erp-req__chip { margin-left: 8px; letter-spacing: 0; text-transform: none; }
+
+/* ERP order: where it ships (2026-10-23) */
+.diaco-design .erp-ship__changed { display: block; margin-top: 4px; font-size: 12px; color: var(--fg-2); }
 
 /* ============================================================
    ITEMIZED QUOTE (collapsible card around the table)
@@ -805,6 +816,61 @@
 .diaco-design .erp-req__chip--declined { background: #F4E4E4; color: #8A2A2A; }
 /* A request button found the page behind the ERP and refreshed it. */
 .diaco-design .erp-req--behind { border-left: 3px solid #D4A94A; gap: 8px; }
+
+/* 2026-10-23 — what Dia-Co changed of what the customer sent: the strip under the order's header, the "Changed by
+   Dia-Co" card at the top of the rail, the marked key-spec tiles and spec rows, and the chip on the orders list.
+   The Pending chip's palette (#FBF1DC / #6B4E12) with a gold dot; Dia-Co's notes in the cream of .cad-note. */
+.diaco-design .erp-chg-strip {
+  margin: 10px 0 0; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; max-width: 100%;
+  background: #FBF1DC; color: #6B4E12; padding: 6px 12px; border-radius: 2px;
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.5;
+}
+.diaco-design .erp-chg-strip .dot { width: 6px; height: 6px; border-radius: 50%; background: #B8862C; flex-shrink: 0; }
+.diaco-design .erp-chg-strip b { font-weight: 600; }
+.diaco-design .erp-chg-strip a { color: #6B4E12; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.diaco-design .erp-chg-strip a:hover { color: var(--fg-1); }
+.diaco-design .erp-chg { scroll-margin-top: 24px; }
+.diaco-design .erp-chg__eyebrow {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; color: var(--dc-brown);
+  text-transform: uppercase; letter-spacing: 2px;
+}
+.diaco-design .erp-chg__title { margin-top: 4px; font-size: 20px; line-height: 1.3; }
+.diaco-design .erp-chg__intro { margin-top: 6px; }
+.diaco-design .erp-chg__when {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600; color: var(--fg-2);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+.diaco-design .erp-chg__item { padding: 10px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.diaco-design .erp-chg__item + .erp-chg__item { margin-top: 12px; border-top: 1px solid var(--dc-gray-200); }
+.diaco-design .erp-chg__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.diaco-design .erp-chg__grid {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 0 10px;
+  font-family: var(--font-sans); font-size: 13px; line-height: 1.55; color: var(--fg-2);
+}
+.diaco-design .erp-chg__grid s,
+.diaco-design .erp-chg__grid strong { overflow-wrap: anywhere; }
+.diaco-design .erp-chg__grid strong { font-weight: 600; color: var(--fg-1); }
+.diaco-design .erp-chg__note {
+  margin: 4px 0 0; padding: 8px 10px; background: #FBF7F1;
+  font-family: var(--font-sans); font-size: 12.5px; line-height: 1.55; color: #3D3D3D; white-space: pre-wrap;
+}
+.diaco-design .erp-chg__note b { font-weight: 600; }
+.diaco-design .erp-chg__foot {
+  padding-top: 14px; border-top: 1px solid var(--dc-gray-300);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.4; color: var(--fg-2);
+}
+.diaco-design .key-spec.is-changed { box-shadow: inset 0 3px 0 var(--dc-gold); }
+.diaco-design .key-spec.is-changed .key-spec__n { color: #6B4E12; font-style: normal; overflow-wrap: anywhere; }
+.diaco-design .kv-grid .v .erp-chg-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.diaco-design .kv-grid .v .erp-chg-plain { display: block; }
+.diaco-design .kv-grid .v .erp-chg-was { display: block; margin: 2px 0 4px; font-size: 12px; color: var(--fg-2); }
+.diaco-design .order-card__chg {
+  align-self: flex-start; margin-top: 4px; display: inline-flex; align-items: center; gap: 6px;
+  background: #FBF1DC; color: #6B4E12; padding: 3px 9px; border-radius: 2px;
+  font-family: var(--font-sans); font-size: 11px; font-weight: 600; line-height: 1.4;
+}
+.diaco-design .order-card__chg .dot { width: 5px; height: 5px; border-radius: 50%; background: #B8862C; flex-shrink: 0; }
 
 /* P1-09 — the invoice card on an invoiced ERP order */
 .diaco-design .erp-invoice {

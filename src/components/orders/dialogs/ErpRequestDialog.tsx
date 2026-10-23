@@ -2,8 +2,9 @@
 
 // ============================================================
 // ErpRequestDialog (ERP integration Step 4b)
-// The four requests a customer can make on an order read from the ERP:
-// approve the design, request changes, Priority Rush, cancel. Each one
+// The requests a customer can make on an order read from the ERP:
+// approve the design, request changes, Priority Rush, cancel -- and
+// (2026-10-23) a question about a change Dia-Co made. Each one
 // sends a request through submitErpRequest; none changes the order by
 // itself -- an AM acts on it in the ERP. One client key per opening, so a
 // second press (or a retry) answers the same request.
@@ -51,11 +52,11 @@ function ErpRequestDialogBody({
   const v = latestVersion?.versionNumber ?? ""
   const total = latestVersion?.erpQuote?.total ?? null
   const copy = COPY[kind](orderNo, v)
-  const needsText = kind === "modify"
+  const needsText = kind === "modify" || kind === "question"
 
   async function send() {
     if (needsText && !text.trim()) {
-      setError("Say what should change.")
+      setError(kind === "question" ? "Say what you'd like to ask." : "Say what should change.")
       return
     }
     setBusy(true)
@@ -208,6 +209,14 @@ const COPY: Record<ErpRequestKind, (orderNo: string, v: string) => Copy> = {
     label: "Reason (optional)",
     back: "Keep the order",
     send: "Ask to cancel",
+  }),
+  question: (orderNo) => ({
+    title: "Ask about a change",
+    body: `Your account manager changed some details of what you sent for ${orderNo}. Ask them about any of it; their reply shows on this page, under Your requests.`,
+    label: "What would you like to ask?",
+    placeholder: "e.g., Why is the size now 6.75? My customer measured 6.5.",
+    back: "Back",
+    send: "Send question",
   }),
 }
 

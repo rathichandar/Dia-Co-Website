@@ -53,8 +53,11 @@ export function ActionCard({
     ? null
     : "Cancellation isn't available once the order has been approved."
 
-  const shipWindow = getShipWindow(order.finishPoint, isRushOn)
-  const computedShipDate = computeShipDateRange(order.finishPoint, isRushOn)
+  // Only the Portal's own orders reach this card, and they always have a finish point (orders.finish_point is NOT NULL);
+  // an ERP order without one uses the ERP's rail.
+  const finishPoint = order.finishPoint ?? "finished_piece"
+  const shipWindow = getShipWindow(finishPoint, isRushOn)
+  const computedShipDate = computeShipDateRange(finishPoint, isRushOn)
 
   const approveDisabled = !isOnLatest
   const approveDisabledReason = !isOnLatest

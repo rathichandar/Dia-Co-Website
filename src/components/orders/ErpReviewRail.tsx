@@ -9,7 +9,9 @@
 //   - Other requests: Priority Rush until production starts, and cancel
 //     while the order is designing.
 //   - Your requests: what Dia-Co did with the ones it answered, in its
-//     own words.
+//     own words, and the customer's questions about a change.
+//   - Above them all (2026-10-23), "Changed by Dia-Co": the details Dia-Co
+//     changed of what the customer sent, with "Ask about a change".
 // A request changes nothing on the order by itself: the ERP files it for
 // an AM, who acts on it (contract §9). The actions show only when the ERP
 // answered the requests list, so a gateway without Step 4b leaves this rail
@@ -25,6 +27,8 @@ import { useRouter } from "next/navigation"
 import type { CadVersion, ErpRequest, ErpRequestKind, Order } from "@/types/order"
 import { checkErpOrderPage } from "@/lib/orders/checkErpOrderPage"
 import { ErpRequestDialog } from "./dialogs/ErpRequestDialog"
+import { ErpChangesCard, type ErpChangesAsk } from "./ErpChangesCard"
+import { ErpYourRequests, requestDay as day } from "./ErpYourRequests"
 
 interface ErpReviewRailProps {
   order: Order
@@ -42,12 +46,17 @@ export function ErpReviewRail({ order, latestVersion }: ErpReviewRailProps) {
   const requests = order.erpRequests
   const canAsk = requests !== undefined
   const open = openByKind(requests ?? [])
-  const answered = (requests ?? []).filter((r) => r.status !== "pending")
+  // Answered requests, and the customer's questions about a change whether answered or not (an open approval,
+  // change request, rush or cancel shows on its own card instead).
+  const yours = (requests ?? []).filter((r) => r.status !== "pending" || r.kind === "question")
+  const changes = order.erpChanges ?? []
 
   const card = latestVersion ? cardFor(order, latestVersion, open, canAsk) : null
   const status = order.portalStatus
-  // Granted once, Priority Rush is not offered again (the page cannot see the roadmap; the ERP would refuse a second ask).
-  const rushGranted = (requests ?? []).some((r) => r.kind === "rush" && r.status === "done")
+  // Granted once, or already on Priority Rush in the ERP (the AM may set it without a request), Priority Rush is not
+  // offered again: the ERP would refuse the ask.
+  const rushGranted =
+    order.priorityRush.eligibility === "approved" || (requests ?? []).some((r) => r.kind === "rush" && r.status === "done")
   const rush: RowState = open.rush ? "pending" : !rushGranted && (status === "designing" || status === "approved") ? "ask" : "none"
   const cancel: RowState = open.cancel
     ? "pending"
@@ -57,6 +66,16 @@ export function ErpReviewRail({ order, latestVersion }: ErpReviewRailProps) {
         ? "closed"
         : "none"
   const showOther = canAsk && (rush !== "none" || cancel !== "none")
+  // A question about a change can be asked on any order not cancelled, one open at a time. It needs no check
+  // against the page first: nothing on the page decides whether it can be asked but the order being cancelled.
+  const askChange: ErpChangesAsk =
+    status === "cancelled"
+      ? { kind: "none" }
+      : !canAsk
+        ? { kind: "contact" }
+        : open.question
+          ? { kind: "pending", askedOn: day(open.question.createdAt) }
+          : { kind: "ask", onAsk: () => setAsking("question") }
 
   // Before a dialog opens, the page is checked against the ERP. If Dia-Co moved the order since the page loaded,
   // the page refreshes and says so instead. If the ERP can't answer, the dialog opens: the ERP checks on send.
@@ -78,8 +97,8 @@ export function ErpReviewRail({ order, latestVersion }: ErpReviewRailProps) {
     setAsking(kind)
   }
 
-  if (!card && !showOther && !answered.length && !behind) return null
-  const cards = (behind ? 1 : 0) + (card ? 1 : 0) + (showOther ? 1 : 0) + (answered.length ? 1 : 0)
+  if (!changes.length && !card && !showOther && !yours.length && !behind) return null
+  const cards = (behind ? 1 : 0) + (changes.length ? 1 : 0) + (card ? 1 : 0) + (showOther ? 1 : 0) + (yours.length ? 1 : 0)
 
   return (
     <div className={cards > 1 ? "order-page__side erp-req__side" : "order-page__side"}>
@@ -88,6 +107,16 @@ export function ErpReviewRail({ order, latestVersion }: ErpReviewRailProps) {
           <div className="erp-req__eyebrow">Page updated</div>
           <p className="erp-req__text">This order changed after you opened the page. It now shows where things stand. Look it over before you ask again.</p>
         </aside>
+      )}
+
+      {changes.length > 0 && (
+        <ErpChangesCard
+          key={order.poNumber}
+          orderNo={order.poNumber}
+          changes={changes}
+          designs={order.cadVersions.map((v) => ({ label: v.versionNumber, at: v.deliveredAt }))}
+          ask={askChange}
+        />
       )}
 
       {card && (
@@ -160,24 +189,7 @@ export function ErpReviewRail({ order, latestVersion }: ErpReviewRailProps) {
         </aside>
       )}
 
-      {answered.length > 0 && (
-        <aside className="erp-req" aria-label="Your requests">
-          <div className="erp-req__eyebrow">Your requests</div>
-          {answered.map((r) => (
-            <div key={r.id} className="erp-req__row">
-              <div className="erp-req__head">
-                <span className="erp-req__name">{requestName(r)}</span>
-                <span className={`erp-req__chip erp-req__chip--${r.status}`}>{r.status === "done" ? "Done" : "Declined"}</span>
-              </div>
-              <p className="erp-req__meta">
-                You asked on {day(r.createdAt)}
-                {r.decidedAt ? ` · Dia-Co replied on ${day(r.decidedAt)}` : ""}
-              </p>
-              {r.note && <div className="erp-req__said">Dia-Co: {r.note}</div>}
-            </div>
-          ))}
-        </aside>
-      )}
+      <ErpYourRequests requests={yours} />
 
       <ErpRequestDialog kind={asking} onClose={() => setAsking(null)} order={order} latestVersion={latestVersion} />
     </div>
@@ -276,17 +288,6 @@ function cardFor(order: Order, latest: CadVersion, open: OpenRequests, canAsk: b
     text: "The renders and the quote stay here as approved. The stage and ship date follow Dia-Co.",
     total: total !== null ? { label: "Quote total", value: money(total) } : undefined,
   }
-}
-
-function requestName(r: ErpRequest): string {
-  if (r.kind === "approve") return `Approval of ${r.againstV ?? "the design"}`
-  if (r.kind === "modify") return `Changes to ${r.againstV ?? "the design"}`
-  if (r.kind === "rush") return "Priority Rush"
-  return "Cancellation"
-}
-
-function day(d: Date): string {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
 function dayTime(d: Date): string {

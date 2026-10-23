@@ -87,7 +87,8 @@ export type ShippingType = "drop_ship_to_customer" | "back_to_jeweler"
 
 export type Carrier = "fedex" | "ups" | "usps" | "courier" | "other"
 
-export type SizeUnit = "US" | "EU" | "mm"
+// "in": a bracelet or necklace length, as the ERP keeps it (an ERP order)
+export type SizeUnit = "US" | "EU" | "mm" | "in"
 
 export type ActorSide = "customer" | "diaco"
 
@@ -316,7 +317,8 @@ export interface CadVersion {
 
 // ERP integration Step 4b: a request the customer made on an ERP order, as the ERP keeps it. It changes
 // nothing on the order: an AM acts on it, then marks it done or declined, with a note the customer reads.
-export type ErpRequestKind = "approve" | "modify" | "cancel" | "rush"
+// "question" (2026-10-23): a question about a change Dia-Co made; Dia-Co answers it by marking it done with a note.
+export type ErpRequestKind = "approve" | "modify" | "cancel" | "rush" | "question"
 
 export interface ErpRequest {
   id: string
@@ -330,6 +332,61 @@ export interface ErpRequest {
   createdAt: Date
   decidedAt: Date | null
   note: string | null
+}
+
+// ERP integration (2026-10-23): a detail of what the customer sent that Dia-Co changed -- while creating the order
+// from the Portal's, or later. The ERP sends it already in the Portal's words; it never says who at Dia-Co changed it.
+export type ErpChangeField =
+  | "reference"
+  | "end_customer"
+  | "quantity"
+  | "product_type"
+  | "size"
+  | "finish_point"
+  | "metal"
+  | "center_stone"
+  | "more_centers"
+  | "accents"
+  | "engraving"
+  | "description"
+  | "shipping"
+
+export interface ErpChange {
+  // null: a field this Portal does not know (the change still shows, under its label)
+  field: ErpChangeField | null
+  what: string
+  // null = nothing (the customer left it empty / Dia-Co removed it)
+  was: string | null
+  now: string | null
+  // Dia-Co's note to the customer about this change
+  note: string | null
+  // ISO timestamp, as the ERP sent it
+  at: string
+  // true: changed while the order was being created from what the customer sent
+  atCreation: boolean
+}
+
+// The order's current specification in words, as the ERP sends it (absent from an older ERP).
+export interface ErpOrderDetails {
+  metals: string[]
+  centerStone: string | null
+  moreCenters: string[]
+  accents: string | null
+  engraving: string | null
+}
+
+// Where an ERP order ships when the customer named somewhere other than their own address (the ERP's data.shipTo, owner
+// ruling D5), as the ERP holds it now -- an AM's correction included.
+export interface ErpShipTo {
+  method: "drop_ship" | "different_address" | "standard" | null
+  recipient: string | null
+  line1: string | null
+  line2: string | null
+  city: string | null
+  state: string | null
+  postal: string | null
+  country: string | null
+  phone: string | null
 }
 
 // ─── Shipping ───────────────────────────────────────────────
@@ -457,13 +514,16 @@ export interface Order {
   size: { value: number; unit: SizeUnit } | null
   quantity: number
 
-  finishPoint: FinishPoint
+  // null: an ERP order whose finish point Dia-Co has not set (an imported order) -- shown as "—", never guessed
+  finishPoint: FinishPoint | null
 
   metals: MetalSpec[]
   stones: StoneSpec
   engraving: EngravingSpec | null
 
   description: string
+  // An ERP order: the customer's notes for Dia-Co, sent with the description (their own words, shown back to them)
+  customerNotes?: string | null
   customerAttachments: Attachment[]
 
   currentStage: Stage
@@ -491,6 +551,21 @@ export interface Order {
   // ERP integration Step 4b: the customer's requests on this ERP order, newest first. Undefined when the ERP
   // did not answer the list (an older gateway, or a failed call): the page then offers no requests at all.
   erpRequests?: ErpRequest[]
+  // 2026-10-23: what Dia-Co changed of what the customer sent, oldest first ([] when nothing, or an older ERP), and
+  // the order's specification in words (undefined from an older ERP: the page then shows what it showed before).
+  erpChanges?: ErpChange[]
+  erpDetails?: ErpOrderDetails
+  // 2026-10-23 (the field audit): where it ships when that is not the customer's own address; undefined from an older
+  // ERP, null when it ships to their address.
+  erpShipTo?: ErpShipTo | null
+}
+
+// ─── Helper: a size as the page prints it ──────────────────
+
+// "6.5 (US)" for a ring size, "7.5 in" for a bracelet or necklace length.
+export function sizeLabel(size: Order["size"]): string {
+  if (!size) return "—"
+  return size.unit === "in" ? `${size.value} in` : `${size.value} (${size.unit})`
 }
 
 // ─── Helper: get a specific CAD version's quote ───────────
